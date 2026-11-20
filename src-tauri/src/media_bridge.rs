@@ -7,6 +7,7 @@ pub struct MediaState {
     pub title: String,
     pub artist: String,
     pub album: String,
+    pub artwork_url: String,
     pub is_playing: bool,
     pub app_name: String,
     pub duration_sec: f64,
@@ -129,6 +130,7 @@ fn fetch_browser_media() -> Option<MediaState> {
                 title: clean_title,
                 artist: format!("Playing in {app_name}"),
                 album: String::new(),
+                artwork_url: String::new(),
                 is_playing: audio_active,
                 app_name: app_name.to_string(),
                 duration_sec: 0.0,
@@ -149,6 +151,11 @@ pub fn fetch_now_playing() -> MediaState {
     }
 
     let target = if spotify_up { "Spotify" } else { "Music" };
+    let art_expr = if target == "Spotify" {
+        "set artUrl to artwork url of current track"
+    } else {
+        "set artUrl to \"\""
+    };
     let script = format!(
         r#"
         tell application "{target}"
@@ -159,7 +166,8 @@ pub fn fetch_now_playing() -> MediaState {
                 set alName to album of current track
                 set dur to duration of current track
                 set pos to player position
-                return "{target}" & "|||" & pState & "|||" & tName & "|||" & aName & "|||" & alName & "|||" & (dur as string) & "|||" & (pos as string)
+                {art_expr}
+                return "{target}" & "|||" & pState & "|||" & tName & "|||" & aName & "|||" & alName & "|||" & (dur as string) & "|||" & (pos as string) & "|||" & artUrl
             end try
         end tell
         return ""
@@ -177,12 +185,13 @@ pub fn fetch_now_playing() -> MediaState {
     if parts.len() < 7 {
         return MediaState::default();
     }
-    let mut dur = parts[5].trim().parse::<f64>().unwrap_or(0.0);
+    let mut dur = parts[5].trim().replace(',', ".").parse::<f64>().unwrap_or(0.0);
     // Spotify returns duration in ms on some versions
     if parts[0] == "Spotify" && dur > 1000.0 {
         dur /= 1000.0;
     }
-    let pos = parts[6].trim().parse::<f64>().unwrap_or(0.0);
+    let pos = parts[6].trim().replace(',', ".").parse::<f64>().unwrap_or(0.0);
+    let artwork_url = parts.get(7).map(|s| s.trim().to_string()).unwrap_or_default();
 
     MediaState {
         app_name: parts[0].to_string(),
@@ -190,6 +199,7 @@ pub fn fetch_now_playing() -> MediaState {
         title: parts[2].to_string(),
         artist: parts[3].to_string(),
         album: parts[4].to_string(),
+        artwork_url,
         duration_sec: dur,
         position_sec: pos,
         has_media: true,
@@ -346,5 +356,24 @@ pub fn media_control(action: String) -> Result<MediaState, String> {
         }
     }
 
+    Ok(fetch_now_playing())
+}
+
+#[tauri::command]
+pub fn media_seek(position_sec: f64) -> Result<MediaState, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let pos = position_sec.max(0.0);
+        let spotify_up = is_process_running("Spotify");
+        let music_up = is_process_running("Music");
+        if spotify_up {
+            let script = format!(r#"tell application "Spotify" to set player position to {pos}"#);
+            let _ = Command::new("osascript").args(["-e", &script]).status();
+        } else if music_up {
+            let script = format!(r#"tell application "Music" to set player position to {pos}"#);
+            let _ = Command::new("osascript").args(["-e", &script]).status();
+        }
+    }
+    let _ = position_sec;
     Ok(fetch_now_playing())
 }

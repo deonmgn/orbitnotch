@@ -225,6 +225,7 @@ pub fn run() {
             system_monitor::toggle_system_mute,
             media_bridge::get_media_state,
             media_bridge::media_control,
+            media_bridge::media_seek,
             clipboard_manager::get_clipboard_history,
             clipboard_manager::copy_clipboard_entry,
             clipboard_manager::toggle_pin_clipboard_entry,

@@ -118,6 +118,7 @@ export const useNotchStore = create<NotchStore>((set) => ({
     title: "",
     artist: "",
     album: "",
+    artworkUrl: "",
     isPlaying: false,
     appName: "",
     durationSec: 0,
