@@ -247,8 +247,8 @@ export function SettingsModule() {
               <p className="text-xs font-medium text-slate-200">Replace System Volume/Brightness HUD</p>
               <p className="text-[10px] text-slate-400">
                 {displayEnv.platform === "macos" && !accessibilityOk
-                  ? "Grant Accessibility in System Settings, then click refresh"
-                  : "Dynamic Island HUD instead of OS popup"}
+                  ? "Grant Accessibility + Input Monitoring, then refresh"
+                  : "HUD Tap Active ✓ — Dynamic Island replaces OS popup"}
               </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">

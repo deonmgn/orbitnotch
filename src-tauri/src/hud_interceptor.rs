@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter};
 
 pub static HUD_REPLACE_ENABLED: AtomicBool = AtomicBool::new(true);
+pub static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +60,8 @@ mod macos_hud {
         static kCFRunLoopCommonModes: *const c_void;
 
         fn CGMainDisplayID() -> u32;
+        fn CGPreflightListenEventAccess() -> bool;
+        fn CGRequestListenEventAccess() -> bool;
         fn dlopen(filename: *const c_char, flag: i32) -> *mut c_void;
         fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
     }
@@ -83,7 +86,8 @@ mod macos_hud {
             if !dict.is_null() {
                 CFRelease(dict);
             }
-            trusted
+            let listen = CGRequestListenEventAccess();
+            trusted && listen
         }
     }
 
@@ -148,7 +152,7 @@ mod macos_hud {
             return event;
         }
 
-        unsafe {
+        objc::rc::autoreleasepool(|| unsafe {
             let ns_ev: id = msg_send![objc::class!(NSEvent), eventWithCGEvent: event];
             if ns_ev.is_null() {
                 return event;
@@ -205,36 +209,46 @@ mod macos_hud {
 
             // Consume event so macOS OSDUIHelper does not show the native system popup
             std::ptr::null_mut()
-        }
+        })
     }
 
     pub fn start(app: AppHandle) {
         let _ = APP_HANDLE.set(app);
         std::thread::spawn(|| unsafe {
-            // Wait until Accessibility permission is granted before creating tap
-            loop {
-                if is_accessibility_granted() {
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_secs(3));
-            }
             let mask: u64 = 1 << 14; // NX_SYSDEFINED
-            let tap = CGEventTapCreate(
-                0, // kCGHIDEventTap
-                0, // kCGHeadInsertEventTap
-                0, // kCGEventTapOptionDefault
-                mask,
-                event_tap_callback,
-                std::ptr::null_mut(),
-            );
-            if tap.is_null() {
-                return;
+            loop {
+                if is_accessibility_granted() && CGPreflightListenEventAccess() {
+                    // Try kCGHIDEventTap (0) first, fallback to kCGSessionEventTap (1)
+                    let mut tap = CGEventTapCreate(
+                        0,
+                        0,
+                        0,
+                        mask,
+                        event_tap_callback,
+                        std::ptr::null_mut(),
+                    );
+                    if tap.is_null() {
+                        tap = CGEventTapCreate(
+                            1,
+                            0,
+                            0,
+                            mask,
+                            event_tap_callback,
+                            std::ptr::null_mut(),
+                        );
+                    }
+                    if !tap.is_null() {
+                        TAP_ACTIVE.store(true, Ordering::Relaxed);
+                        let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
+                        let rl = CFRunLoopGetCurrent();
+                        CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
+                        CGEventTapEnable(tap, true);
+                        CFRunLoopRun();
+                        TAP_ACTIVE.store(false, Ordering::Relaxed);
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_secs(2));
             }
-            let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
-            let rl = CFRunLoopGetCurrent();
-            CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
-            CGEventTapEnable(tap, true);
-            CFRunLoopRun();
         });
     }
 }
@@ -302,7 +316,7 @@ pub fn start_hud_interceptor(app: AppHandle) {
 pub fn get_accessibility_status() -> bool {
     #[cfg(target_os = "macos")]
     {
-        return macos_hud::is_accessibility_granted();
+        return TAP_ACTIVE.load(Ordering::Relaxed);
     }
     #[cfg(not(target_os = "macos"))]
     {
