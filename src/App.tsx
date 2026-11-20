@@ -6,6 +6,7 @@ import { useNotchStore } from "./store/useNotchStore";
 import type {
   ClipboardEntry,
   DisplayEnvironment,
+  HudPayload,
   MediaState,
   MeetingEvent,
   MonitorSummary,
@@ -23,8 +24,10 @@ export function App() {
   const setMeetings = useNotchStore((s) => s.setMeetings);
   const toggleExpanded = useNotchStore((s) => s.toggleExpanded);
   const triggerPeek = useNotchStore((s) => s.triggerPeek);
+  const triggerHud = useNotchStore((s) => s.triggerHud);
   const tickPomodoro = useNotchStore((s) => s.tickPomodoro);
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
+  const replaceSystemHud = useNotchStore((s) => s.replaceSystemHud);
   const setWeatherLabel = useNotchStore((s) => s.setWeatherLabel);
   const prevStatsRef = useRef<SystemStats | null>(null);
 
@@ -51,9 +54,11 @@ export function App() {
     invoke<MeetingEvent[]>("get_upcoming_meetings")
       .then(setMeetings)
       .catch(() => {});
+    invoke("set_replace_system_hud", { enabled: replaceSystemHud }).catch(() => {});
 
     const unlisteners: Promise<() => void>[] = [
       listen("notch://toggle", () => toggleExpanded()),
+      listen<HudPayload>("notch://hud", (e) => triggerHud(e.payload)),
       listen<SystemStats>("system://stats", (e) => {
         const next = e.payload;
         const prev = prevStatsRef.current;
@@ -98,7 +103,9 @@ export function App() {
     setShelf,
     setSystemStats,
     toggleExpanded,
+    triggerHud,
     triggerPeek,
+    replaceSystemHud,
   ]);
 
   // 1-second Pomodoro ticker

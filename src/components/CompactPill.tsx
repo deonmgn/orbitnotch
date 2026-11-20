@@ -1,3 +1,4 @@
+import { Sun, Volume2, VolumeX } from "lucide-react";
 import { useNotchStore } from "../store/useNotchStore";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { OrbitLogo } from "./OrbitLogo";
@@ -22,6 +23,7 @@ export function CompactPill() {
   const meetings = useNotchStore((s) => s.meetings);
   const shelfCount = useNotchStore((s) => s.shelf.length);
   const peekEvent = useNotchStore((s) => s.peekEvent);
+  const hudOverlay = useNotchStore((s) => s.hudOverlay);
   const notchWidth = useNotchStore((s) => s.displayEnv.notchWidth);
   const isHardwareNotch = useNotchStore(
     (s) =>
@@ -73,7 +75,32 @@ export function CompactPill() {
 
       {/* Right Wing */}
       <div className="flex items-center gap-1.5 shrink-0">
-        {peekEvent ? (
+        {hudOverlay ? (
+          <div className="flex items-center gap-1.5">
+            {hudOverlay.kind === "brightness" ? (
+              <Sun className="w-3 h-3 text-amber-300" />
+            ) : hudOverlay.muted ? (
+              <VolumeX className="w-3 h-3 text-rose-400" />
+            ) : (
+              <Volume2 className="w-3 h-3 text-cyan-300" />
+            )}
+            <div className="w-8 h-1 rounded-full bg-white/15 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-100 ${
+                  hudOverlay.kind === "brightness"
+                    ? "bg-amber-300"
+                    : hudOverlay.muted
+                    ? "bg-rose-400"
+                    : "bg-cyan-400"
+                }`}
+                style={{ width: `${hudOverlay.muted ? 0 : hudOverlay.value}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-mono text-slate-200">
+              {hudOverlay.muted ? "0%" : `${hudOverlay.value}%`}
+            </span>
+          </div>
+        ) : peekEvent ? (
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 animate-pulse">
             {peekEvent.label}
           </span>

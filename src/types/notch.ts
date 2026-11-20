@@ -12,6 +12,12 @@ export interface PeekEvent {
   label: string;
 }
 
+export interface HudPayload {
+  kind: "volume" | "brightness";
+  value: number;
+  muted: boolean;
+}
+
 export type NotchMode = "auto" | "hardware" | "floating";
 export type NotchTheme = "obsidian" | "oled" | "frosted";
 

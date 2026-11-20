@@ -20,15 +20,24 @@ export function SettingsModule() {
   const licenseKey = useNotchStore((s) => s.licenseKey);
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
   const setHideInFullscreen = useNotchStore((s) => s.setHideInFullscreen);
+  const replaceSystemHud = useNotchStore((s) => s.replaceSystemHud);
+  const setReplaceSystemHud = useNotchStore((s) => s.setReplaceSystemHud);
   const enabledTabs = useNotchStore((s) => s.enabledTabs);
   const toggleTabEnabled = useNotchStore((s) => s.toggleTabEnabled);
   const activatePro = useNotchStore((s) => s.activatePro);
   const deactivatePro = useNotchStore((s) => s.deactivatePro);
 
   const [autostartOn, setAutostartOn] = useState(false);
+  const [accessibilityOk, setAccessibilityOk] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState(licenseKey);
   const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    invoke<boolean>("get_accessibility_status")
+      .then(setAccessibilityOk)
+      .catch(() => {});
+  }, []);
 
   const handleActivatePro = async () => {
     const code = keyInput.trim();
@@ -229,6 +238,51 @@ export function SettingsModule() {
           <PowerOff className="w-3.5 h-3.5" />
           Quit OrbitNotch
         </button>
+      </div>
+
+      {/* Replace Native Volume & Brightness HUD */}
+      <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium text-slate-200">Replace System Volume/Brightness HUD</p>
+          <p className="text-[10px] text-slate-400">
+            {displayEnv.platform === "macos" && !accessibilityOk
+              ? "Accessibility permission required on macOS"
+              : "Show sleek Notch HUD instead of OS popup"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {displayEnv.platform === "macos" && !accessibilityOk && (
+            <button
+              onClick={async () => {
+                const ok = await invoke<boolean>("request_accessibility_permission").catch(
+                  () => false
+                );
+                setAccessibilityOk(ok);
+                showNotice(ok ? "Accessibility granted!" : "Enable OrbitNotch in Settings");
+              }}
+              className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[10px] font-medium border border-amber-400/30"
+            >
+              Grant
+            </button>
+          )}
+          <button
+            onClick={() => {
+              const next = !replaceSystemHud;
+              setReplaceSystemHud(next);
+              invoke("set_replace_system_hud", { enabled: next }).catch(() => {});
+              showNotice(next ? "System HUD replaced" : "System HUD restored");
+            }}
+            className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
+              replaceSystemHud ? "bg-cyan-500" : "bg-white/15"
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                replaceSystemHud ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Auto-hide in Fullscreen */}

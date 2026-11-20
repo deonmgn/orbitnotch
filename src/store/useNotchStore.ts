@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   ClipboardEntry,
   DisplayEnvironment,
+  HudPayload,
   MediaState,
   MeetingEvent,
   MonitorSummary,
@@ -28,9 +29,11 @@ interface NotchStore {
   isPro: boolean;
   licenseKey: string;
   hideInFullscreen: boolean;
+  replaceSystemHud: boolean;
   weatherLabel: string | null;
   enabledTabs: NotchTab[];
   peekEvent: PeekEvent | null;
+  hudOverlay: HudPayload | null;
   activeTab: NotchTab;
   notchMode: NotchMode;
   theme: NotchTheme;
@@ -50,11 +53,13 @@ interface NotchStore {
   setDraggingFile: (dragging: boolean) => void;
   setDialogOpen: (open: boolean) => void;
   setHideInFullscreen: (hide: boolean) => void;
+  setReplaceSystemHud: (enabled: boolean) => void;
   setWeatherLabel: (label: string | null) => void;
   toggleTabEnabled: (tab: NotchTab) => void;
   activatePro: (key: string) => void;
   deactivatePro: () => void;
   triggerPeek: (event: PeekEvent) => void;
+  triggerHud: (hud: HudPayload) => void;
   setActiveTab: (tab: NotchTab) => void;
   setNotchMode: (mode: NotchMode) => void;
   setTheme: (theme: NotchTheme) => void;
@@ -87,6 +92,10 @@ const savedLicense =
   typeof window !== "undefined" ? localStorage.getItem("orbitnotch_license") ?? "" : "";
 const savedHideFs =
   typeof window !== "undefined" ? localStorage.getItem("orbitnotch_hide_fs") === "true" : false;
+const savedReplaceHud =
+  typeof window !== "undefined"
+    ? localStorage.getItem("orbitnotch_replace_hud") !== "false"
+    : true;
 const DEFAULT_TABS: NotchTab[] = ["shelf", "media", "productivity", "quick", "system", "meeting"];
 const savedTabs: NotchTab[] = (() => {
   try {
@@ -106,9 +115,11 @@ export const useNotchStore = create<NotchStore>((set) => ({
   isPro: savedLicense.trim().length >= 8,
   licenseKey: savedLicense,
   hideInFullscreen: savedHideFs,
+  replaceSystemHud: savedReplaceHud,
   weatherLabel: null,
   enabledTabs: savedTabs,
   peekEvent: null,
+  hudOverlay: null,
   activeTab: "shelf",
   notchMode: savedMode,
   theme: savedTheme,
@@ -167,6 +178,10 @@ export const useNotchStore = create<NotchStore>((set) => ({
     localStorage.setItem("orbitnotch_hide_fs", String(hideInFullscreen));
     set({ hideInFullscreen });
   },
+  setReplaceSystemHud: (replaceSystemHud) => {
+    localStorage.setItem("orbitnotch_replace_hud", String(replaceSystemHud));
+    set({ replaceSystemHud });
+  },
   setWeatherLabel: (weatherLabel) => set({ weatherLabel }),
   toggleTabEnabled: (tab) =>
     set((s) => {
@@ -192,6 +207,12 @@ export const useNotchStore = create<NotchStore>((set) => ({
     window.setTimeout(() => {
       set((s) => (s.peekEvent === peekEvent ? { peekEvent: null } : s));
     }, 2400);
+  },
+  triggerHud: (hudOverlay) => {
+    set({ hudOverlay });
+    window.setTimeout(() => {
+      set((s) => (s.hudOverlay === hudOverlay ? { hudOverlay: null } : s));
+    }, 1800);
   },
   setActiveTab: (activeTab) => set({ activeTab }),
   setNotchMode: (notchMode) => {

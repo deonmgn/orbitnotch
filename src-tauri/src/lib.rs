@@ -1,5 +1,6 @@
 mod calendar_ics;
 mod clipboard_manager;
+mod hud_interceptor;
 mod media_bridge;
 mod shelf_manager;
 mod system_monitor;
@@ -211,6 +212,9 @@ pub fn run() {
                 }
             });
 
+            // Start native Volume & Brightness HUD key interceptor
+            hud_interceptor::start_hud_interceptor(app.handle().clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -251,6 +255,9 @@ pub fn run() {
             calendar_ics::import_ics_content,
             calendar_ics::import_ics_file,
             calendar_ics::remove_meeting,
+            hud_interceptor::set_replace_system_hud,
+            hud_interceptor::get_accessibility_status,
+            hud_interceptor::request_accessibility_permission,
             launch_shortcut_target,
             quit_app,
         ])
