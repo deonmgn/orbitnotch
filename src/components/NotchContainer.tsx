@@ -48,6 +48,7 @@ export function NotchContainer() {
   const selectedMonitor = useNotchStore((s) => s.selectedMonitor);
   const weatherLabel = useNotchStore((s) => s.weatherLabel);
   const enabledTabs = useNotchStore((s) => s.enabledTabs);
+  const hudOverlay = useNotchStore((s) => s.hudOverlay);
 
   const hoverTimeoutRef = useRef<number | null>(null);
   const collapseTimeoutRef = useRef<number | null>(null);
@@ -58,6 +59,7 @@ export function NotchContainer() {
 
   const notchW = Math.max(176, Math.round(displayEnv.notchWidth));
   const compactWidth = isHardwareNotch ? notchW + 132 : 236;
+  const activeCompactWidth = hudOverlay ? compactWidth + 104 : compactWidth;
   const compactHeight = isHardwareNotch ? Math.max(32, Math.round(displayEnv.notchHeight)) : 34;
   const expandedWidth = 640;
   const expandedHeight = isHardwareNotch ? 392 : 368;
@@ -116,18 +118,19 @@ export function NotchContainer() {
         focus: false,
       }).catch(() => {});
     } else {
+      const delay = hudOverlay ? 0 : 240;
       const timer = window.setTimeout(() => {
         invoke("set_notch_window_size", {
-          width: isHardwareNotch ? compactWidth + 20 : compactWidth,
+          width: isHardwareNotch ? activeCompactWidth + 20 : activeCompactWidth,
           height: compactHeight,
           hasNotch: isHardwareNotch,
           monitorIndex: selectedMonitor,
           focus: false,
         }).catch(() => {});
-      }, 240);
+      }, delay);
       return () => window.clearTimeout(timer);
     }
-  }, [isExpanded, isHardwareNotch, compactWidth, compactHeight, expandedHeight, selectedMonitor]);
+  }, [isExpanded, isHardwareNotch, activeCompactWidth, compactHeight, expandedHeight, selectedMonitor, hudOverlay]);
 
   // Listen for native OS file drag-and-drop
   useEffect(() => {
@@ -226,7 +229,7 @@ export function NotchContainer() {
           }}
           onClick={() => !isExpanded && setExpanded(true)}
           animate={{
-            width: isExpanded ? expandedWidth : compactWidth,
+            width: isExpanded ? expandedWidth : activeCompactWidth,
             height: isExpanded ? expandedHeight : compactHeight,
             borderTopLeftRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,
             borderTopRightRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,

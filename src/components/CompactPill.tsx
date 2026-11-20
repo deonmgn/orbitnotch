@@ -37,31 +37,52 @@ export function CompactPill() {
     <div className="w-full h-full flex items-center justify-between px-3 gap-1.5">
       {/* Left Wing */}
       <div className="flex items-center gap-1.5 min-w-0">
-        {media.hasMedia && media.artworkUrl ? (
-          <img
-            src={media.artworkUrl}
-            alt=""
-            className="w-4 h-4 rounded-[4px] object-cover shrink-0 ring-1 ring-white/20"
-          />
+        {hudOverlay ? (
+          <>
+            {hudOverlay.kind === "brightness" ? (
+              <Sun className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+            ) : hudOverlay.muted ? (
+              <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+            )}
+            <span className="text-[11px] font-medium text-slate-100">
+              {hudOverlay.kind === "brightness"
+                ? "Brightness"
+                : hudOverlay.muted
+                ? "Muted"
+                : "Volume"}
+            </span>
+          </>
         ) : (
-          <OrbitLogo size={15} active={media.isPlaying || pomodoro.running} />
-        )}
-        {pomodoro.running ? (
-          <span className="text-[11px] font-mono font-semibold text-cyan-300">
-            {formatShortTimer(pomodoro.secondsLeft)}
-          </span>
-        ) : media.hasMedia && media.isPlaying ? (
-          <span className="text-[10px] font-medium text-slate-200 truncate max-w-[44px]">
-            {media.title}
-          </span>
-        ) : shelfCount > 0 && !isHardwareNotch ? (
-          <span className="text-[11px] font-medium text-slate-300">
-            {shelfCount} {shelfCount === 1 ? "item" : "items"}
-          </span>
-        ) : (
-          <span className="text-[11px] font-medium text-slate-200 tracking-tight">
-            Orbit
-          </span>
+          <>
+            {media.hasMedia && media.artworkUrl ? (
+              <img
+                src={media.artworkUrl}
+                alt=""
+                className="w-4 h-4 rounded-[4px] object-cover shrink-0 ring-1 ring-white/20"
+              />
+            ) : (
+              <OrbitLogo size={15} active={media.isPlaying || pomodoro.running} />
+            )}
+            {pomodoro.running ? (
+              <span className="text-[11px] font-mono font-semibold text-cyan-300">
+                {formatShortTimer(pomodoro.secondsLeft)}
+              </span>
+            ) : media.hasMedia && media.isPlaying ? (
+              <span className="text-[10px] font-medium text-slate-200 truncate max-w-[44px]">
+                {media.title}
+              </span>
+            ) : shelfCount > 0 && !isHardwareNotch ? (
+              <span className="text-[11px] font-medium text-slate-300">
+                {shelfCount} {shelfCount === 1 ? "item" : "items"}
+              </span>
+            ) : (
+              <span className="text-[11px] font-medium text-slate-200 tracking-tight">
+                Orbit
+              </span>
+            )}
+          </>
         )}
       </div>
 
@@ -76,27 +97,20 @@ export function CompactPill() {
       {/* Right Wing */}
       <div className="flex items-center gap-1.5 shrink-0">
         {hudOverlay ? (
-          <div className="flex items-center gap-1.5">
-            {hudOverlay.kind === "brightness" ? (
-              <Sun className="w-3 h-3 text-amber-300" />
-            ) : hudOverlay.muted ? (
-              <VolumeX className="w-3 h-3 text-rose-400" />
-            ) : (
-              <Volume2 className="w-3 h-3 text-cyan-300" />
-            )}
-            <div className="w-8 h-1 rounded-full bg-white/15 overflow-hidden">
+          <div className="flex items-center gap-2">
+            <div className="w-16 h-1.5 rounded-full bg-white/15 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-100 ${
                   hudOverlay.kind === "brightness"
-                    ? "bg-amber-300"
+                    ? "bg-amber-300 shadow-[0_0_8px_#fcd34d]"
                     : hudOverlay.muted
                     ? "bg-rose-400"
-                    : "bg-cyan-400"
+                    : "bg-cyan-400 shadow-[0_0_8px_#22d3ee]"
                 }`}
                 style={{ width: `${hudOverlay.muted ? 0 : hudOverlay.value}%` }}
               />
             </div>
-            <span className="text-[10px] font-mono text-slate-200">
+            <span className="text-[10px] font-mono font-semibold text-slate-100 w-7 text-right">
               {hudOverlay.muted ? "0%" : `${hudOverlay.value}%`}
             </span>
           </div>
