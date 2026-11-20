@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build outputs
+dist/
+web/dist/
+src-tauri/target/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

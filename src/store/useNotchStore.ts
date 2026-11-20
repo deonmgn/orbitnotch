@@ -1,0 +1,202 @@
+import { create } from "zustand";
+import type {
+  ClipboardEntry,
+  DisplayEnvironment,
+  MediaState,
+  MeetingEvent,
+  MonitorSummary,
+  NotchMode,
+  NotchTab,
+  NotchTheme,
+  PeekEvent,
+  ShelfItem,
+  SystemStats,
+} from "../types/notch";
+
+interface PomodoroState {
+  running: boolean;
+  phase: "work" | "break";
+  secondsLeft: number;
+  workMinutes: number;
+  breakMinutes: number;
+}
+
+interface NotchStore {
+  isExpanded: boolean;
+  isDraggingFile: boolean;
+  isDialogOpen: boolean;
+  peekEvent: PeekEvent | null;
+  activeTab: NotchTab;
+  notchMode: NotchMode;
+  theme: NotchTheme;
+  displayEnv: DisplayEnvironment;
+  monitors: MonitorSummary[];
+  selectedMonitor: number;
+  systemStats: SystemStats;
+  mediaState: MediaState;
+  clipboard: ClipboardEntry[];
+  shelf: ShelfItem[];
+  meetings: MeetingEvent[];
+  notes: string;
+  pomodoro: PomodoroState;
+
+  setExpanded: (expanded: boolean) => void;
+  toggleExpanded: () => void;
+  setDraggingFile: (dragging: boolean) => void;
+  setDialogOpen: (open: boolean) => void;
+  triggerPeek: (event: PeekEvent) => void;
+  setActiveTab: (tab: NotchTab) => void;
+  setNotchMode: (mode: NotchMode) => void;
+  setTheme: (theme: NotchTheme) => void;
+  setDisplayEnv: (env: DisplayEnvironment) => void;
+  setMonitors: (monitors: MonitorSummary[]) => void;
+  setSelectedMonitor: (index: number) => void;
+  setSystemStats: (stats: SystemStats) => void;
+  setMediaState: (media: MediaState) => void;
+  setClipboard: (entries: ClipboardEntry[]) => void;
+  setShelf: (items: ShelfItem[]) => void;
+  setMeetings: (events: MeetingEvent[]) => void;
+  setNotes: (notes: string) => void;
+
+  startPausePomodoro: () => void;
+  resetPomodoro: (workMinutes?: number) => void;
+  tickPomodoro: () => void;
+}
+
+const savedNotes =
+  typeof window !== "undefined" ? localStorage.getItem("orbitnotch_notes") ?? "" : "";
+const savedMode =
+  (typeof window !== "undefined"
+    ? (localStorage.getItem("orbitnotch_mode") as NotchMode | null)
+    : null) ?? "auto";
+const savedTheme =
+  (typeof window !== "undefined"
+    ? (localStorage.getItem("orbitnotch_theme") as NotchTheme | null)
+    : null) ?? "obsidian";
+
+export const useNotchStore = create<NotchStore>((set) => ({
+  isExpanded: false,
+  isDraggingFile: false,
+  isDialogOpen: false,
+  peekEvent: null,
+  activeTab: "shelf",
+  notchMode: savedMode,
+  theme: savedTheme,
+  displayEnv: {
+    hasHardwareNotch: false,
+    notchWidth: 200,
+    notchHeight: 34,
+    screenWidth: 1440,
+    screenHeight: 900,
+    scaleFactor: 1,
+    platform: "macos",
+    monitorCount: 1,
+  },
+  monitors: [],
+  selectedMonitor: 0,
+  systemStats: {
+    cpuPercent: 0,
+    memoryUsedGb: 0,
+    memoryTotalGb: 16,
+    memoryPercent: 0,
+    netDownKbps: 0,
+    netUpKbps: 0,
+    batteryPercent: null,
+    isCharging: false,
+    volumePercent: 50,
+    isMuted: false,
+  },
+  mediaState: {
+    title: "",
+    artist: "",
+    album: "",
+    isPlaying: false,
+    appName: "",
+    durationSec: 0,
+    positionSec: 0,
+    hasMedia: false,
+  },
+  clipboard: [],
+  shelf: [],
+  meetings: [],
+  notes: savedNotes,
+  pomodoro: {
+    running: false,
+    phase: "work",
+    secondsLeft: 25 * 60,
+    workMinutes: 25,
+    breakMinutes: 5,
+  },
+
+  setExpanded: (isExpanded) => set({ isExpanded }),
+  toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
+  setDraggingFile: (isDraggingFile) => set({ isDraggingFile }),
+  setDialogOpen: (isDialogOpen) => set({ isDialogOpen }),
+  triggerPeek: (peekEvent) => {
+    set({ peekEvent });
+    window.setTimeout(() => {
+      set((s) => (s.peekEvent === peekEvent ? { peekEvent: null } : s));
+    }, 2400);
+  },
+  setActiveTab: (activeTab) => set({ activeTab }),
+  setNotchMode: (notchMode) => {
+    localStorage.setItem("orbitnotch_mode", notchMode);
+    set({ notchMode });
+  },
+  setTheme: (theme) => {
+    localStorage.setItem("orbitnotch_theme", theme);
+    set({ theme });
+  },
+  setDisplayEnv: (displayEnv) => set({ displayEnv }),
+  setMonitors: (monitors) => set({ monitors }),
+  setSelectedMonitor: (selectedMonitor) => set({ selectedMonitor }),
+  setSystemStats: (systemStats) => set({ systemStats }),
+  setMediaState: (mediaState) => set({ mediaState }),
+  setClipboard: (clipboard) => set({ clipboard }),
+  setShelf: (shelf) => set({ shelf }),
+  setMeetings: (meetings) => set({ meetings }),
+  setNotes: (notes) => {
+    localStorage.setItem("orbitnotch_notes", notes);
+    set({ notes });
+  },
+
+  startPausePomodoro: () =>
+    set((s) => ({
+      pomodoro: { ...s.pomodoro, running: !s.pomodoro.running },
+    })),
+
+  resetPomodoro: (workMinutes) =>
+    set((s) => {
+      const mins = workMinutes ?? s.pomodoro.workMinutes;
+      return {
+        pomodoro: {
+          ...s.pomodoro,
+          running: false,
+          phase: "work",
+          workMinutes: mins,
+          secondsLeft: mins * 60,
+        },
+      };
+    }),
+
+  tickPomodoro: () =>
+    set((s) => {
+      if (!s.pomodoro.running) return s;
+      if (s.pomodoro.secondsLeft > 1) {
+        return {
+          pomodoro: { ...s.pomodoro, secondsLeft: s.pomodoro.secondsLeft - 1 },
+        };
+      }
+      const nextPhase = s.pomodoro.phase === "work" ? "break" : "work";
+      const nextSeconds =
+        (nextPhase === "work" ? s.pomodoro.workMinutes : s.pomodoro.breakMinutes) * 60;
+      return {
+        pomodoro: {
+          ...s.pomodoro,
+          phase: nextPhase,
+          secondsLeft: nextSeconds,
+          running: false,
+        },
+      };
+    }),
+}));

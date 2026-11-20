@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    background: transparent !important;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    color: #f8fafc;
+  }
+}
+
+/* Custom slim scrollbar inside expanded modules */
+.notch-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.notch-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notch-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+.notch-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
