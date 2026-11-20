@@ -16,8 +16,7 @@ import { useState } from "react";
 
 const RELEASE_URL = "https://github.com/deonmgn/orbitnotch/releases/latest";
 const FEEDBACK_URL = "https://github.com/deonmgn/orbitnotch/issues/new";
-// Replace with your Mayar.id product checkout URL once created:
-const MAYAR_PRO_URL = "https://mayar.id";
+const MAYAR_PRO_URL = "https://modedesk.myr.id/pl/orbitnotch-pro-lifetime-license";
 
 const DEMO_TABS = [
   {
@@ -306,7 +305,7 @@ export function App() {
                 rel="noreferrer"
                 className="mt-6 block text-center py-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 text-xs font-semibold hover:brightness-110 transition-all"
               >
-                Get OrbitNotch Pro (Mayar.id)
+                Get OrbitNotch Pro (Rp 49.000)
               </a>
             </div>
           </div>

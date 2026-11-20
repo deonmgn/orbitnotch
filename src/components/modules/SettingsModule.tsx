@@ -24,6 +24,34 @@ export function SettingsModule() {
   const [autostartOn, setAutostartOn] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState(licenseKey);
+  const [verifying, setVerifying] = useState(false);
+
+  const handleActivatePro = async () => {
+    const code = keyInput.trim();
+    if (code.length < 6) {
+      showNotice("Enter a valid key");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const resp = await fetch("https://orbitnotch.vercel.app/api/verify-license", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseCode: code }),
+      });
+      const json = await resp.json();
+      if (json.valid) {
+        activatePro(code);
+        showNotice("Pro unlocked!");
+      } else {
+        showNotice(json.message || "Invalid license key");
+      }
+    } catch {
+      showNotice("Network error verifying key");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   useEffect(() => {
     isEnabled()
@@ -206,14 +234,24 @@ export function SettingsModule() {
             <Crown className={`w-3.5 h-3.5 ${isPro ? "text-amber-400" : "text-slate-400"}`} />
             {isPro ? "OrbitNotch Pro Active" : "OrbitNotch Pro License"}
           </span>
-          <button
-            onClick={() =>
-              openUrl("https://github.com/deonmgn/orbitnotch/issues/new").catch(() => {})
-            }
-            className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-          >
-            <MessageSquarePlus className="w-3 h-3" /> Request Feature
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                openUrl("https://modedesk.myr.id/pl/orbitnotch-pro-lifetime-license").catch(() => {})
+              }
+              className="text-[10px] text-amber-300 hover:text-amber-200 font-medium"
+            >
+              Buy Pro
+            </button>
+            <button
+              onClick={() =>
+                openUrl("https://github.com/deonmgn/orbitnotch/issues/new").catch(() => {})
+              }
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+            >
+              <MessageSquarePlus className="w-3 h-3" /> Request Feature
+            </button>
+          </div>
         </div>
 
         {isPro ? (
@@ -239,17 +277,11 @@ export function SettingsModule() {
               className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-[11px] text-white placeholder:text-slate-500 focus:outline-none"
             />
             <button
-              onClick={() => {
-                if (keyInput.trim().length < 8) {
-                  showNotice("Invalid license key");
-                  return;
-                }
-                activatePro(keyInput);
-                showNotice("Pro unlocked!");
-              }}
-              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 font-semibold text-[11px]"
+              onClick={handleActivatePro}
+              disabled={verifying}
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 font-semibold text-[11px] disabled:opacity-60"
             >
-              Activate
+              {verifying ? "..." : "Activate"}
             </button>
           </div>
         )}
