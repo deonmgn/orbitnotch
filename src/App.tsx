@@ -24,6 +24,8 @@ export function App() {
   const toggleExpanded = useNotchStore((s) => s.toggleExpanded);
   const triggerPeek = useNotchStore((s) => s.triggerPeek);
   const tickPomodoro = useNotchStore((s) => s.tickPomodoro);
+  const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
+  const setWeatherLabel = useNotchStore((s) => s.setWeatherLabel);
   const prevStatsRef = useRef<SystemStats | null>(null);
 
   useEffect(() => {
@@ -104,6 +106,47 @@ export function App() {
     const id = window.setInterval(tickPomodoro, 1000);
     return () => window.clearInterval(id);
   }, [tickPomodoro]);
+
+  // Mini Weather Badge (Open-Meteo, free & no API key, refreshed every 30m)
+  useEffect(() => {
+    const loadWeather = async () => {
+      try {
+        const geo = await fetch("https://ipapi.co/json/").then((r) => r.json());
+        if (!geo?.latitude || !geo?.longitude) return;
+        const w = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current_weather=true`
+        ).then((r) => r.json());
+        const temp = w?.current_weather?.temperature;
+        const code = w?.current_weather?.weathercode ?? 0;
+        if (typeof temp === "number") {
+          const icon = code >= 51 ? "🌧" : code >= 2 ? "⛅" : "☀";
+          setWeatherLabel(`${Math.round(temp)}°C ${icon}`);
+        }
+      } catch {
+        // Ignore offline
+      }
+    };
+    loadWeather();
+    const id = window.setInterval(loadWeather, 30 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [setWeatherLabel]);
+
+  // Optional Auto-Hide in Fullscreen
+  useEffect(() => {
+    if (!hideInFullscreen) {
+      invoke("set_notch_visible", { visible: true }).catch(() => {});
+      return;
+    }
+    const id = window.setInterval(async () => {
+      try {
+        const fs = await invoke<boolean>("is_fullscreen_active");
+        await invoke("set_notch_visible", { visible: !fs });
+      } catch {
+        // Ignore
+      }
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [hideInFullscreen]);
 
   return <NotchContainer />;
 }

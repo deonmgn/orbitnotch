@@ -46,6 +46,7 @@ export function NotchContainer() {
   const notchMode = useNotchStore((s) => s.notchMode);
   const displayEnv = useNotchStore((s) => s.displayEnv);
   const selectedMonitor = useNotchStore((s) => s.selectedMonitor);
+  const weatherLabel = useNotchStore((s) => s.weatherLabel);
 
   const hoverTimeoutRef = useRef<number | null>(null);
   const collapseTimeoutRef = useRef<number | null>(null);
@@ -267,6 +268,11 @@ export function NotchContainer() {
                 )}
 
                 <div className="flex items-center gap-1.5">
+                  {weatherLabel && (
+                    <span className="text-[10px] font-mono text-slate-300 bg-white/[0.06] px-2 py-0.5 rounded-full">
+                      {weatherLabel}
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

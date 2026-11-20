@@ -413,6 +413,94 @@ pub fn is_cursor_inside_window(_window: &WebviewWindow) -> bool {
     false
 }
 
+#[tauri::command]
+pub fn is_fullscreen_active(app: tauri::AppHandle) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let Some(window) = app.get_webview_window("main") else {
+            return false;
+        };
+        let Ok(Some(mon)) = window.primary_monitor() else {
+            return false;
+        };
+        let scale = mon.scale_factor();
+        let size = mon.size().to_logical::<f64>(scale);
+        // Check if active frontmost app has a window covering the full screen height
+        let script = r#"
+        tell application "System Events"
+            set frontApp to first application process whose frontmost is true
+            if name of frontApp is "orbitnotch" then return "false"
+            try
+                set wSize to size of front window of frontApp
+                return (item 1 of wSize as string) & "," & (item 2 of wSize as string)
+            end try
+        end tell
+        return "false"
+        "#;
+        if let Ok(out) = std::process::Command::new("osascript")
+            .args(["-e", script])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let parts: Vec<&str> = text.split(',').collect();
+            if parts.len() == 2 {
+                let w = parts[0].trim().parse::<f64>().unwrap_or(0.0);
+                let h = parts[1].trim().parse::<f64>().unwrap_or(0.0);
+                return (w - size.width).abs() < 4.0 && (h - size.height).abs() < 4.0;
+            }
+        }
+        return false;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
+        let _ = app;
+        unsafe {
+            let fg = GetForegroundWindow();
+            if fg.0.is_null() {
+                return false;
+            }
+            let mut w_rect = RECT::default();
+            if GetWindowRect(fg, &mut w_rect).is_err() {
+                return false;
+            }
+            let hmon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
+            let mut mi = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if GetMonitorInfoW(hmon, &mut mi).as_bool() {
+                let mr = mi.rcMonitor;
+                return w_rect.left <= mr.left
+                    && w_rect.top <= mr.top
+                    && w_rect.right >= mr.right
+                    && w_rect.bottom >= mr.bottom;
+            }
+        }
+        return false;
+    }
+
+    #[allow(unreachable_code)]
+    {
+        let _ = app;
+        false
+    }
+}
+
+#[tauri::command]
+pub fn set_notch_visible(app: tauri::AppHandle, visible: bool) {
+    if let Some(window) = app.get_webview_window("main") {
+        if visible {
+            let _ = window.show();
+        } else {
+            let _ = window.hide();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -27,6 +27,8 @@ interface NotchStore {
   isDialogOpen: boolean;
   isPro: boolean;
   licenseKey: string;
+  hideInFullscreen: boolean;
+  weatherLabel: string | null;
   peekEvent: PeekEvent | null;
   activeTab: NotchTab;
   notchMode: NotchMode;
@@ -46,6 +48,8 @@ interface NotchStore {
   toggleExpanded: () => void;
   setDraggingFile: (dragging: boolean) => void;
   setDialogOpen: (open: boolean) => void;
+  setHideInFullscreen: (hide: boolean) => void;
+  setWeatherLabel: (label: string | null) => void;
   activatePro: (key: string) => void;
   deactivatePro: () => void;
   triggerPeek: (event: PeekEvent) => void;
@@ -79,6 +83,8 @@ const savedTheme =
     : null) ?? "obsidian";
 const savedLicense =
   typeof window !== "undefined" ? localStorage.getItem("orbitnotch_license") ?? "" : "";
+const savedHideFs =
+  typeof window !== "undefined" ? localStorage.getItem("orbitnotch_hide_fs") === "true" : false;
 
 export const useNotchStore = create<NotchStore>((set) => ({
   isExpanded: false,
@@ -86,6 +92,8 @@ export const useNotchStore = create<NotchStore>((set) => ({
   isDialogOpen: false,
   isPro: savedLicense.trim().length >= 8,
   licenseKey: savedLicense,
+  hideInFullscreen: savedHideFs,
+  weatherLabel: null,
   peekEvent: null,
   activeTab: "shelf",
   notchMode: savedMode,
@@ -141,6 +149,11 @@ export const useNotchStore = create<NotchStore>((set) => ({
   toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
   setDraggingFile: (isDraggingFile) => set({ isDraggingFile }),
   setDialogOpen: (isDialogOpen) => set({ isDialogOpen }),
+  setHideInFullscreen: (hideInFullscreen) => {
+    localStorage.setItem("orbitnotch_hide_fs", String(hideInFullscreen));
+    set({ hideInFullscreen });
+  },
+  setWeatherLabel: (weatherLabel) => set({ weatherLabel }),
   activatePro: (key) => {
     const clean = key.trim();
     localStorage.setItem("orbitnotch_license", clean);

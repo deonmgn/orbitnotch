@@ -18,6 +18,8 @@ export function SettingsModule() {
   const displayEnv = useNotchStore((s) => s.displayEnv);
   const isPro = useNotchStore((s) => s.isPro);
   const licenseKey = useNotchStore((s) => s.licenseKey);
+  const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
+  const setHideInFullscreen = useNotchStore((s) => s.setHideInFullscreen);
   const activatePro = useNotchStore((s) => s.activatePro);
   const deactivatePro = useNotchStore((s) => s.deactivatePro);
 
@@ -224,6 +226,29 @@ export function SettingsModule() {
         >
           <PowerOff className="w-3.5 h-3.5" />
           Quit OrbitNotch
+        </button>
+      </div>
+
+      {/* Auto-hide in Fullscreen */}
+      <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-slate-200">Auto-Hide in Fullscreen</p>
+          <p className="text-[10px] text-slate-400">Hide notch when watching movies or gaming fullscreen</p>
+        </div>
+        <button
+          onClick={() => {
+            setHideInFullscreen(!hideInFullscreen);
+            showNotice(!hideInFullscreen ? "Fullscreen auto-hide ON" : "Fullscreen auto-hide OFF");
+          }}
+          className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
+            hideInFullscreen ? "bg-cyan-500" : "bg-white/15"
+          }`}
+        >
+          <div
+            className={`w-4 h-4 rounded-full bg-white transition-transform ${
+              hideInFullscreen ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
         </button>
       </div>
 

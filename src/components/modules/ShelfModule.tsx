@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Copy, FileText, Folder, FolderOpen, Image as ImageIcon, Pin, Plus, Trash2, UploadCloud } from "lucide-react";
+import { Copy, FileText, Folder, FolderOpen, Image as ImageIcon, Minimize2, Pin, Plus, ScanText, Trash2, UploadCloud } from "lucide-react";
 import { useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { ShelfItem } from "../../types/notch";
@@ -17,7 +17,18 @@ export function ShelfModule() {
   const isDraggingFile = useNotchStore((s) => s.isDraggingFile);
   const setDialogOpen = useNotchStore((s) => s.setDialogOpen);
   const [quickText, setQuickText] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [statusById, setStatusById] = useState<Record<string, string>>({});
+
+  const flashStatus = (id: string, msg: string) => {
+    setStatusById((s) => ({ ...s, [id]: msg }));
+    setTimeout(() => {
+      setStatusById((s) => {
+        const next = { ...s };
+        delete next[id];
+        return next;
+      });
+    }, 1500);
+  };
 
   const handlePickFiles = async () => {
     setDialogOpen(true);
@@ -49,8 +60,7 @@ export function ShelfModule() {
     if (item.kind === "image" && item.path) {
       try {
         await invoke("copy_image_to_clipboard", { path: item.path });
-        setCopiedId(item.id);
-        setTimeout(() => setCopiedId(null), 1200);
+        flashStatus(item.id, "Image copied!");
         return;
       } catch {
         // Fallback to path copy
@@ -62,8 +72,30 @@ export function ShelfModule() {
     } catch {
       await navigator.clipboard.writeText(value).catch(() => {});
     }
-    setCopiedId(item.id);
-    setTimeout(() => setCopiedId(null), 1200);
+    flashStatus(item.id, "Copied!");
+  };
+
+  const handleOcr = async (item: ShelfItem) => {
+    if (!item.path) return;
+    flashStatus(item.id, "Scanning...");
+    try {
+      await invoke<string>("extract_image_text_ocr", { path: item.path });
+      flashStatus(item.id, "OCR copied!");
+    } catch {
+      flashStatus(item.id, "No text");
+    }
+  };
+
+  const handleCompress = async (item: ShelfItem) => {
+    if (!item.path) return;
+    flashStatus(item.id, "Compressing...");
+    try {
+      const updated = await invoke<ShelfItem[]>("compress_shelf_image", { path: item.path });
+      setShelf(updated);
+      flashStatus(item.id, "Compressed!");
+    } catch {
+      flashStatus(item.id, "Failed");
+    }
   };
 
   const handleTogglePin = async (id: string) => {
@@ -167,11 +199,29 @@ export function ShelfModule() {
                   <p className="text-xs font-medium text-slate-100 truncate">{item.name}</p>
                   <p className="text-[10px] text-slate-400">
                     {item.kind === "text" ? "Snippet" : formatSize(item.sizeBytes)}
-                    {copiedId === item.id && " • Copied!"}
+                    {statusById[item.id] && ` • ${statusById[item.id]}`}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100">
+                <div className="flex items-center gap-0.5 opacity-75 group-hover:opacity-100">
+                  {item.kind === "image" && item.path && (
+                    <>
+                      <button
+                        onClick={() => handleOcr(item)}
+                        title="Extract text (OCR)"
+                        className="p-1 rounded-md hover:bg-white/10 text-cyan-300"
+                      >
+                        <ScanText className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleCompress(item)}
+                        title="Compress to JPG"
+                        className="p-1 rounded-md hover:bg-white/10 text-emerald-300"
+                      >
+                        <Minimize2 className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => handleCopy(item)}
                     title={item.kind === "image" ? "Copy image to clipboard" : "Copy path or text"}

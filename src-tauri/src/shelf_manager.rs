@@ -336,6 +336,129 @@ pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn extract_image_text_ocr(path: String) -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let swift_code = r#"
+import Foundation
+import Vision
+import AppKit
+
+let args = CommandLine.arguments
+guard args.count > 1 else { exit(1) }
+let url = URL(fileURLWithPath: args[1])
+guard let image = NSImage(contentsOf: url),
+      let tiff = image.tiffRepresentation,
+      let bitmap = NSBitmapImageRep(data: tiff),
+      let cgImage = bitmap.cgImage else {
+    exit(1)
+}
+let req = VNRecognizeTextRequest()
+req.recognitionLevel = .accurate
+req.usesLanguageCorrection = true
+let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+try handler.perform([req])
+let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+print(lines.joined(separator: "\n"))
+"#;
+        let output = std::process::Command::new("/usr/bin/swift")
+            .args(["-e", swift_code, &path])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err("OCR failed on image".to_string());
+        }
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if text.is_empty() {
+            return Err("No text found in image".to_string());
+        }
+        if let Ok(mut cb) = arboard::Clipboard::new() {
+            let _ = cb.set_text(text.clone());
+        }
+        return Ok(text);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let escaped = path.replace('\'', "''");
+        let ps_script = format!(
+            r#"
+            Add-Type -AssemblyName System.Runtime.WindowsRuntime
+            $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime]
+            $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType=WindowsRuntime]
+            $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType=WindowsRuntime]
+            $file = [Windows.Storage.StorageFile]::GetFileFromPathAsync('{escaped}').GetAwaiter().GetResult()
+            $stream = $file.OpenAsync([Windows.Storage.FileAccessMode]::Read).GetAwaiter().GetResult()
+            $decoder = [Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream).GetAwaiter().GetResult()
+            $bmp = $decoder.GetSoftwareBitmapAsync().GetAwaiter().GetResult()
+            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+            $res = $engine.RecognizeAsync($bmp).GetAwaiter().GetResult()
+            Write-Output $res.Text
+            "#
+        );
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps_script])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if text.is_empty() {
+            return Err("No text found in image".to_string());
+        }
+        if let Ok(mut cb) = arboard::Clipboard::new() {
+            let _ = cb.set_text(text.clone());
+        }
+        return Ok(text);
+    }
+
+    #[allow(unreachable_code)]
+    Err("OCR unsupported on this OS".to_string())
+}
+
+#[tauri::command]
+pub fn compress_shelf_image(
+    state: tauri::State<ShelfStore>,
+    path: String,
+) -> Result<Vec<ShelfItem>, String> {
+    let src = PathBuf::from(&path);
+    let parent = src.parent().ok_or("Invalid path")?;
+    let stem = src
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image");
+    let out_path = parent.join(format!("{}-compressed.jpg", stem));
+    let out_str = out_path.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("sips")
+            .args(["-s", "format", "jpeg", "-s", "formatOptions", "72", &path, "--out", &out_str])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Image compression failed".to_string());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let esc_in = path.replace('\'', "''");
+        let esc_out = out_str.replace('\'', "''");
+        let ps = format!(
+            "Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile('{esc_in}'); $enc = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object {{ $_.MimeType -eq 'image/jpeg' }}; $ep = New-Object System.Drawing.Imaging.EncoderParameters(1); $ep.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, 72); $img.Save('{esc_out}', $enc, $ep); $img.Dispose()"
+        );
+        let status = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Image compression failed".to_string());
+        }
+    }
+
+    Ok(state.add_files(vec![out_str]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
