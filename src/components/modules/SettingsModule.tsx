@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { Keyboard, Monitor, Palette, Power, PowerOff } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { Crown, Keyboard, MessageSquarePlus, Monitor, Palette, Power, PowerOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { DisplayEnvironment, NotchMode, NotchTheme } from "../../types/notch";
@@ -15,9 +16,14 @@ export function SettingsModule() {
   const setSelectedMonitor = useNotchStore((s) => s.setSelectedMonitor);
   const setDisplayEnv = useNotchStore((s) => s.setDisplayEnv);
   const displayEnv = useNotchStore((s) => s.displayEnv);
+  const isPro = useNotchStore((s) => s.isPro);
+  const licenseKey = useNotchStore((s) => s.licenseKey);
+  const activatePro = useNotchStore((s) => s.activatePro);
+  const deactivatePro = useNotchStore((s) => s.deactivatePro);
 
   const [autostartOn, setAutostartOn] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [keyInput, setKeyInput] = useState(licenseKey);
 
   useEffect(() => {
     isEnabled()
@@ -191,6 +197,62 @@ export function SettingsModule() {
           <PowerOff className="w-3.5 h-3.5" />
           Quit OrbitNotch
         </button>
+      </div>
+
+      {/* OrbitNotch Pro License & Feedback */}
+      <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-slate-200 flex items-center gap-1.5">
+            <Crown className={`w-3.5 h-3.5 ${isPro ? "text-amber-400" : "text-slate-400"}`} />
+            {isPro ? "OrbitNotch Pro Active" : "OrbitNotch Pro License"}
+          </span>
+          <button
+            onClick={() =>
+              openUrl("https://github.com/deonmgn/orbitnotch/issues/new").catch(() => {})
+            }
+            className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+          >
+            <MessageSquarePlus className="w-3 h-3" /> Request Feature
+          </button>
+        </div>
+
+        {isPro ? (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-emerald-300 font-mono truncate">Key: {licenseKey}</span>
+            <button
+              onClick={() => {
+                deactivatePro();
+                setKeyInput("");
+                showNotice("License removed");
+              }}
+              className="text-rose-400 hover:text-rose-300 ml-2 shrink-0"
+            >
+              Deactivate
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <input
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              placeholder="Paste Mayar.id License Key..."
+              className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-[11px] text-white placeholder:text-slate-500 focus:outline-none"
+            />
+            <button
+              onClick={() => {
+                if (keyInput.trim().length < 8) {
+                  showNotice("Invalid license key");
+                  return;
+                }
+                activatePro(keyInput);
+                showNotice("Pro unlocked!");
+              }}
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 font-semibold text-[11px]"
+            >
+              Activate
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

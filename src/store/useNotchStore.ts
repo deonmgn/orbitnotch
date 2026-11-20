@@ -25,6 +25,8 @@ interface NotchStore {
   isExpanded: boolean;
   isDraggingFile: boolean;
   isDialogOpen: boolean;
+  isPro: boolean;
+  licenseKey: string;
   peekEvent: PeekEvent | null;
   activeTab: NotchTab;
   notchMode: NotchMode;
@@ -44,6 +46,8 @@ interface NotchStore {
   toggleExpanded: () => void;
   setDraggingFile: (dragging: boolean) => void;
   setDialogOpen: (open: boolean) => void;
+  activatePro: (key: string) => void;
+  deactivatePro: () => void;
   triggerPeek: (event: PeekEvent) => void;
   setActiveTab: (tab: NotchTab) => void;
   setNotchMode: (mode: NotchMode) => void;
@@ -73,11 +77,15 @@ const savedTheme =
   (typeof window !== "undefined"
     ? (localStorage.getItem("orbitnotch_theme") as NotchTheme | null)
     : null) ?? "obsidian";
+const savedLicense =
+  typeof window !== "undefined" ? localStorage.getItem("orbitnotch_license") ?? "" : "";
 
 export const useNotchStore = create<NotchStore>((set) => ({
   isExpanded: false,
   isDraggingFile: false,
   isDialogOpen: false,
+  isPro: savedLicense.trim().length >= 8,
+  licenseKey: savedLicense,
   peekEvent: null,
   activeTab: "shelf",
   notchMode: savedMode,
@@ -132,6 +140,15 @@ export const useNotchStore = create<NotchStore>((set) => ({
   toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
   setDraggingFile: (isDraggingFile) => set({ isDraggingFile }),
   setDialogOpen: (isDialogOpen) => set({ isDialogOpen }),
+  activatePro: (key) => {
+    const clean = key.trim();
+    localStorage.setItem("orbitnotch_license", clean);
+    set({ isPro: clean.length >= 8, licenseKey: clean });
+  },
+  deactivatePro: () => {
+    localStorage.removeItem("orbitnotch_license");
+    set({ isPro: false, licenseKey: "" });
+  },
   triggerPeek: (peekEvent) => {
     set({ peekEvent });
     window.setTimeout(() => {

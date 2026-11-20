@@ -15,6 +15,9 @@ import {
 import { useState } from "react";
 
 const RELEASE_URL = "https://github.com/deonmgn/orbitnotch/releases/latest";
+const FEEDBACK_URL = "https://github.com/deonmgn/orbitnotch/issues/new";
+// Replace with your Mayar.id product checkout URL once created:
+const MAYAR_PRO_URL = "https://mayar.id";
 
 const DEMO_TABS = [
   {
@@ -89,6 +92,14 @@ export function App() {
           </a>
           <a href="#pricing" className="text-slate-400 hover:text-white transition-colors">
             Free &amp; Pro
+          </a>
+          <a
+            href={FEEDBACK_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-400 hover:text-cyan-300 transition-colors"
+          >
+            Request Feature
           </a>
           <a
             href={RELEASE_URL}
@@ -268,11 +279,11 @@ export function App() {
             <div className="p-6 rounded-3xl bg-gradient-to-b from-cyan-500/15 to-indigo-500/10 border border-cyan-400/40 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-cyan-400 text-slate-950">
-                  Lifetime License
+                  Lifetime · QRIS / GoPay / BCA
                 </span>
                 <h3 className="text-lg font-semibold text-white mt-2">OrbitNotch Pro</h3>
                 <p className="text-3xl font-bold text-white mt-1">
-                  $6 <span className="text-xs font-normal text-slate-400">/ one-time</span>
+                  Rp 49.000 <span className="text-xs font-normal text-slate-400">/ one-time</span>
                 </p>
                 <ul className="mt-5 space-y-2 text-xs text-slate-200">
                   {[
@@ -290,12 +301,12 @@ export function App() {
                 </ul>
               </div>
               <a
-                href={RELEASE_URL}
+                href={MAYAR_PRO_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-6 block text-center py-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 text-xs font-semibold hover:brightness-110 transition-all"
               >
-                Get OrbitNotch Pro
+                Get OrbitNotch Pro (Mayar.id)
               </a>
             </div>
           </div>
