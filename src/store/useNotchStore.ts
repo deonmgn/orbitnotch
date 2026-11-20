@@ -29,6 +29,7 @@ interface NotchStore {
   licenseKey: string;
   hideInFullscreen: boolean;
   weatherLabel: string | null;
+  enabledTabs: NotchTab[];
   peekEvent: PeekEvent | null;
   activeTab: NotchTab;
   notchMode: NotchMode;
@@ -50,6 +51,7 @@ interface NotchStore {
   setDialogOpen: (open: boolean) => void;
   setHideInFullscreen: (hide: boolean) => void;
   setWeatherLabel: (label: string | null) => void;
+  toggleTabEnabled: (tab: NotchTab) => void;
   activatePro: (key: string) => void;
   deactivatePro: () => void;
   triggerPeek: (event: PeekEvent) => void;
@@ -85,6 +87,17 @@ const savedLicense =
   typeof window !== "undefined" ? localStorage.getItem("orbitnotch_license") ?? "" : "";
 const savedHideFs =
   typeof window !== "undefined" ? localStorage.getItem("orbitnotch_hide_fs") === "true" : false;
+const DEFAULT_TABS: NotchTab[] = ["shelf", "media", "productivity", "quick", "system", "meeting"];
+const savedTabs: NotchTab[] = (() => {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("orbitnotch_tabs") : null;
+    if (!raw) return DEFAULT_TABS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_TABS;
+  } catch {
+    return DEFAULT_TABS;
+  }
+})();
 
 export const useNotchStore = create<NotchStore>((set) => ({
   isExpanded: false,
@@ -94,6 +107,7 @@ export const useNotchStore = create<NotchStore>((set) => ({
   licenseKey: savedLicense,
   hideInFullscreen: savedHideFs,
   weatherLabel: null,
+  enabledTabs: savedTabs,
   peekEvent: null,
   activeTab: "shelf",
   notchMode: savedMode,
@@ -154,6 +168,16 @@ export const useNotchStore = create<NotchStore>((set) => ({
     set({ hideInFullscreen });
   },
   setWeatherLabel: (weatherLabel) => set({ weatherLabel }),
+  toggleTabEnabled: (tab) =>
+    set((s) => {
+      const exists = s.enabledTabs.includes(tab);
+      if (exists && s.enabledTabs.length <= 2) return s; // keep at least 2 tabs
+      const next = exists
+        ? s.enabledTabs.filter((t) => t !== tab)
+        : [...s.enabledTabs, tab];
+      localStorage.setItem("orbitnotch_tabs", JSON.stringify(next));
+      return { enabledTabs: next };
+    }),
   activatePro: (key) => {
     const clean = key.trim();
     localStorage.setItem("orbitnotch_license", clean);

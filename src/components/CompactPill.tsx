@@ -35,10 +35,22 @@ export function CompactPill() {
     <div className="w-full h-full flex items-center justify-between px-3 gap-1.5">
       {/* Left Wing */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <OrbitLogo size={15} active={media.isPlaying || pomodoro.running} />
+        {media.hasMedia && media.artworkUrl ? (
+          <img
+            src={media.artworkUrl}
+            alt=""
+            className="w-4 h-4 rounded-[4px] object-cover shrink-0 ring-1 ring-white/20"
+          />
+        ) : (
+          <OrbitLogo size={15} active={media.isPlaying || pomodoro.running} />
+        )}
         {pomodoro.running ? (
           <span className="text-[11px] font-mono font-semibold text-cyan-300">
             {formatShortTimer(pomodoro.secondsLeft)}
+          </span>
+        ) : media.hasMedia && media.isPlaying ? (
+          <span className="text-[10px] font-medium text-slate-200 truncate max-w-[44px]">
+            {media.title}
           </span>
         ) : shelfCount > 0 && !isHardwareNotch ? (
           <span className="text-[11px] font-medium text-slate-300">

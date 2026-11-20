@@ -20,6 +20,8 @@ export function SettingsModule() {
   const licenseKey = useNotchStore((s) => s.licenseKey);
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
   const setHideInFullscreen = useNotchStore((s) => s.setHideInFullscreen);
+  const enabledTabs = useNotchStore((s) => s.enabledTabs);
+  const toggleTabEnabled = useNotchStore((s) => s.toggleTabEnabled);
   const activatePro = useNotchStore((s) => s.activatePro);
   const deactivatePro = useNotchStore((s) => s.deactivatePro);
 
@@ -250,6 +252,38 @@ export function SettingsModule() {
             }`}
           />
         </button>
+      </div>
+
+      {/* Modular Tab Toggles (Droppy-style minimalism) */}
+      <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-slate-200">Visible Modules</span>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              { id: "shelf", label: "Shelf" },
+              { id: "media", label: "Media" },
+              { id: "productivity", label: "Focus" },
+              { id: "quick", label: "Quick" },
+              { id: "system", label: "System" },
+              { id: "meeting", label: "Meet" },
+            ] as const
+          ).map((t) => {
+            const on = enabledTabs.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                onClick={() => toggleTabEnabled(t.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                  on
+                    ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-200"
+                    : "bg-white/[0.03] border-white/10 text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* OrbitNotch Pro License & Feedback */}

@@ -47,6 +47,7 @@ export function NotchContainer() {
   const displayEnv = useNotchStore((s) => s.displayEnv);
   const selectedMonitor = useNotchStore((s) => s.selectedMonitor);
   const weatherLabel = useNotchStore((s) => s.weatherLabel);
+  const enabledTabs = useNotchStore((s) => s.enabledTabs);
 
   const hoverTimeoutRef = useRef<number | null>(null);
   const collapseTimeoutRef = useRef<number | null>(null);
@@ -108,7 +109,7 @@ export function NotchContainer() {
   useEffect(() => {
     if (isExpanded) {
       invoke("set_notch_window_size", {
-        width: isHardwareNotch ? expandedWidth : expandedWidth + 64,
+        width: isHardwareNotch ? expandedWidth + 24 : expandedWidth + 64,
         height: isHardwareNotch ? expandedHeight : expandedHeight + 48,
         hasNotch: isHardwareNotch,
         monitorIndex: selectedMonitor,
@@ -117,7 +118,7 @@ export function NotchContainer() {
     } else {
       const timer = window.setTimeout(() => {
         invoke("set_notch_window_size", {
-          width: compactWidth,
+          width: isHardwareNotch ? compactWidth + 20 : compactWidth,
           height: compactHeight,
           hasNotch: isHardwareNotch,
           monitorIndex: selectedMonitor,
@@ -202,34 +203,46 @@ export function NotchContainer() {
         isHardwareNotch ? "pt-0" : "pt-0.5"
       }`}
     >
-      <motion.div
-        layout
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onPointerDown={() => {
-          if (isExpanded) {
-            invoke("focus_notch_window").catch(() => {});
-          }
-        }}
-        onClick={() => !isExpanded && setExpanded(true)}
-        animate={{
-          width: isExpanded ? expandedWidth : compactWidth,
-          height: isExpanded ? expandedHeight : compactHeight,
-          borderTopLeftRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,
-          borderTopRightRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,
-          borderBottomLeftRadius: isExpanded ? 26 : isHardwareNotch ? 14 : 999,
-          borderBottomRightRadius: isExpanded ? 26 : isHardwareNotch ? 14 : 999,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 440,
-          damping: 34,
-          mass: 0.85,
-        }}
-        className={`relative overflow-hidden ${surfaceClass} ${
-          isExpanded && !isHardwareNotch ? "shadow-[0_10px_20px_rgba(0,0,0,0.45)]" : ""
-        } ${!isExpanded ? "cursor-pointer" : ""}`}
-      >
+      <div className="relative flex items-start">
+        {/* Alcove-style inverted concave ear curve (Left) */}
+        {isHardwareNotch && (
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            className="shrink-0 -mr-[1px]"
+          >
+            <path d="M 10 0 L 0 0 A 10 10 0 0 1 10 10 Z" fill="#000000" />
+          </svg>
+        )}
+        <motion.div
+          layout
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onPointerDown={() => {
+            if (isExpanded) {
+              invoke("focus_notch_window").catch(() => {});
+            }
+          }}
+          onClick={() => !isExpanded && setExpanded(true)}
+          animate={{
+            width: isExpanded ? expandedWidth : compactWidth,
+            height: isExpanded ? expandedHeight : compactHeight,
+            borderTopLeftRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,
+            borderTopRightRadius: isHardwareNotch ? 0 : isExpanded ? 24 : 999,
+            borderBottomLeftRadius: isExpanded ? 26 : isHardwareNotch ? 14 : 999,
+            borderBottomRightRadius: isExpanded ? 26 : isHardwareNotch ? 14 : 999,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 380,
+            damping: 28,
+            mass: 0.78,
+          }}
+          className={`relative overflow-hidden ${surfaceClass} ${
+            isExpanded && !isHardwareNotch ? "shadow-[0_10px_20px_rgba(0,0,0,0.45)]" : ""
+          } ${!isExpanded ? "cursor-pointer" : ""}`}
+        >
         <AnimatePresence mode="wait">
           {!isExpanded ? (
             <motion.div
@@ -303,7 +316,7 @@ export function NotchContainer() {
               {/* Navigation Tabs — cleanly positioned below the physical notch */}
               <div className="flex items-center justify-center">
                 <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-full border border-white/10">
-                  {TABS.map(({ id, label, icon: Icon }) => {
+                  {TABS.filter((t) => enabledTabs.includes(t.id)).map(({ id, label, icon: Icon }) => {
                     const active = activeTab === id;
                     return (
                       <button
@@ -328,20 +341,43 @@ export function NotchContainer() {
                 </div>
               </div>
 
-              {/* Active Module Content */}
+              {/* Active Module Content with iOS-style micro-blur transition */}
               <div className="flex-1 min-h-0">
-                {activeTab === "shelf" && <ShelfModule />}
-                {activeTab === "media" && <MediaModule />}
-                {activeTab === "productivity" && <ProductivityModule />}
-                {activeTab === "quick" && <QuickModule />}
-                {activeTab === "system" && <SystemModule />}
-                {activeTab === "meeting" && <MeetingModule />}
-                {activeTab === "settings" && <SettingsModule />}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, scale: 0.98, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, scale: 0.98, filter: "blur(3px)" }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="w-full h-full"
+                  >
+                    {activeTab === "shelf" && <ShelfModule />}
+                    {activeTab === "media" && <MediaModule />}
+                    {activeTab === "productivity" && <ProductivityModule />}
+                    {activeTab === "quick" && <QuickModule />}
+                    {activeTab === "system" && <SystemModule />}
+                    {activeTab === "meeting" && <MeetingModule />}
+                    {activeTab === "settings" && <SettingsModule />}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
+        {/* Alcove-style inverted concave ear curve (Right) */}
+        {isHardwareNotch && (
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            className="shrink-0 -ml-[1px]"
+          >
+            <path d="M 0 0 L 10 0 A 10 10 0 0 0 0 10 Z" fill="#000000" />
+          </svg>
+        )}
+      </div>
     </div>
   );
 }
