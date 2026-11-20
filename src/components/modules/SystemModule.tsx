@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowDown, ArrowUp, Battery, BatteryCharging, Cpu, MemoryStick, Volume2, VolumeX } from "lucide-react";
+import { ArrowDown, ArrowUp, Battery, BatteryCharging, Camera, Cpu, Lock, MemoryStick, Volume2, VolumeX } from "lucide-react";
 import { useNotchStore } from "../../store/useNotchStore";
 
 function formatRate(kbps: number): string {
@@ -30,7 +30,7 @@ export function SystemModule() {
   };
 
   return (
-    <div className="flex flex-col justify-between h-full gap-2.5">
+    <div className="flex flex-col justify-center h-full gap-3">
       <div className="grid grid-cols-2 gap-2.5">
         {/* CPU Card */}
         <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-1.5">
@@ -94,6 +94,31 @@ export function SystemModule() {
             {stats.batteryPercent !== null ? `${stats.batteryPercent}%` : "AC Power"}
           </span>
         </div>
+      </div>
+
+      {/* Quick System Actions */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => invoke("trigger_screenshot").catch(() => {})}
+          className="py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Camera className="w-3.5 h-3.5 text-cyan-400" />
+          Screenshot
+        </button>
+        <button
+          onClick={handleToggleMute}
+          className="py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+          {stats.isMuted ? "Unmute" : "Mute Audio"}
+        </button>
+        <button
+          onClick={() => invoke("lock_screen").catch(() => {})}
+          className="py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Lock className="w-3.5 h-3.5 text-violet-400" />
+          Lock Screen
+        </button>
       </div>
 
       {/* Volume Control Bar */}

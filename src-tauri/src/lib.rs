@@ -223,6 +223,8 @@ pub fn run() {
             system_monitor::get_system_stats,
             system_monitor::set_system_volume,
             system_monitor::toggle_system_mute,
+            system_monitor::trigger_screenshot,
+            system_monitor::lock_screen,
             media_bridge::get_media_state,
             media_bridge::media_control,
             media_bridge::media_seek,

@@ -11,9 +11,10 @@ interface ShortcutItem {
 const DEFAULT_SHORTCUTS: ShortcutItem[] = [
   { id: "1", label: "Chrome", target: "Google Chrome" },
   { id: "2", label: "Terminal", target: "Terminal" },
-  { id: "3", label: "GitHub", target: "https://github.com" },
-  { id: "4", label: "ChatGPT", target: "https://chatgpt.com" },
-  { id: "5", label: "YouTube", target: "https://youtube.com" },
+  { id: "3", label: "Finder", target: "Finder" },
+  { id: "4", label: "GitHub", target: "https://github.com" },
+  { id: "5", label: "ChatGPT", target: "https://chatgpt.com" },
+  { id: "6", label: "YouTube", target: "https://youtube.com" },
 ];
 
 function evaluateQuickExpression(raw: string): string | null {
@@ -124,6 +125,17 @@ export function QuickModule() {
               )}
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {["100 usd to idr", "32 c to f", "250000 * 1.11", "5 km to mi"].map((sample) => (
+            <button
+              key={sample}
+              onClick={() => setExpr(sample)}
+              className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/10 text-[10px] font-mono text-slate-400 hover:text-cyan-300 transition-colors"
+            >
+              {sample}
+            </button>
+          ))}
         </div>
       </div>
 

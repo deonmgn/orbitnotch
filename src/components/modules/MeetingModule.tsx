@@ -218,6 +218,23 @@ export function MeetingModule() {
               placeholder="Meeting title"
               className="bg-black/40 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white focus:outline-none"
             />
+            <div className="flex items-center gap-1">
+              {[15, 30, 60].map((mins) => (
+                <button
+                  key={mins}
+                  onClick={() => {
+                    const d = new Date(Date.now() + mins * 60000);
+                    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                      .toISOString()
+                      .slice(0, 16);
+                    setTimeStr(local);
+                  }}
+                  className="px-2 py-0.5 rounded bg-white/[0.06] hover:bg-cyan-500/20 text-[10px] font-mono text-slate-300 hover:text-cyan-200"
+                >
+                  +{mins >= 60 ? "1h" : `${mins}m`}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-1.5">
               <input
                 type="datetime-local"

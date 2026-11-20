@@ -206,3 +206,47 @@ pub fn toggle_system_mute() -> Result<(), String> {
     #[allow(unreachable_code)]
     Ok(())
 }
+
+#[tauri::command]
+pub fn trigger_screenshot() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("screencapture")
+            .args(["-i", "-c"])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg("ms-screenclip:")
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
+#[tauri::command]
+pub fn lock_screen() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("pmset")
+            .arg("displaysleepnow")
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("rundll32.exe")
+            .args(["user32.dll,LockWorkStation"])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[allow(unreachable_code)]
+    Ok(())
+}
