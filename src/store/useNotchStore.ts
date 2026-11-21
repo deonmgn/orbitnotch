@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import type {
   ClipboardEntry,
@@ -196,10 +197,12 @@ export const useNotchStore = create<NotchStore>((set) => ({
   activatePro: (key) => {
     const clean = key.trim();
     localStorage.setItem("orbitnotch_license", clean);
+    invoke("save_license_key", { key: clean }).catch(() => {});
     set({ isPro: clean.length >= 8, licenseKey: clean });
   },
   deactivatePro: () => {
     localStorage.removeItem("orbitnotch_license");
+    invoke("clear_license_key").catch(() => {});
     set({ isPro: false, licenseKey: "" });
   },
   triggerPeek: (peekEvent) => {

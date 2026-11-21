@@ -51,6 +51,13 @@ export function SettingsModule() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState(licenseKey);
   const [verifying, setVerifying] = useState(false);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updatingApp, setUpdatingApp] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{
+    tag: string;
+    downloadUrl: string;
+    hasNewer: boolean;
+  } | null>(null);
 
   const accessibilityOk = hudStatus.hidTapActive;
 
@@ -540,9 +547,73 @@ export function SettingsModule() {
             </button>
           </div>
 
-          <p className="text-center text-[10px] text-slate-500">
-            OrbitNotch v0.1.0 · macOS &amp; Windows
-          </p>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <span className="text-[10px] text-slate-500">
+              OrbitNotch v0.1.0 · {updateInfo ? (updateInfo.hasNewer ? `Update ${updateInfo.tag} ready` : `Latest (${updateInfo.tag})`) : "macOS & Windows"}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {updateInfo?.downloadUrl && (
+                <button
+                  disabled={updatingApp}
+                  onClick={async () => {
+                    if (displayEnv.platform === "macos") {
+                      setUpdatingApp(true);
+                      showNotice("Downloading & installing update...");
+                      try {
+                        await invoke("install_app_update", {
+                          downloadUrl: updateInfo.downloadUrl,
+                        });
+                        await invoke("quit_app").catch(() => {});
+                      } catch {
+                        openUrl(updateInfo.downloadUrl).catch(() => {});
+                        showNotice("Opened update download");
+                      } finally {
+                        setUpdatingApp(false);
+                      }
+                    } else {
+                      openUrl(updateInfo.downloadUrl).catch(() => {});
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-medium hover:bg-cyan-500/30 disabled:opacity-50"
+                >
+                  {updatingApp ? "Updating..." : updateInfo.hasNewer ? "Install Update" : "Reinstall Latest"}
+                </button>
+              )}
+              <button
+                disabled={updateChecking}
+                onClick={async () => {
+                  setUpdateChecking(true);
+                  try {
+                    const resp = await fetch(
+                      "https://api.github.com/repos/deonmgn/orbitnotch/releases/latest"
+                    );
+                    const rel = await resp.json();
+                    const tag: string = rel?.tag_name || "v0.1.0";
+                    const assets: Array<{ name: string; browser_download_url: string }> =
+                      Array.isArray(rel?.assets) ? rel.assets : [];
+                    const preferred =
+                      displayEnv.platform === "macos"
+                        ? assets.find((a) => a.name.endsWith(".dmg"))
+                        : assets.find((a) => a.name.endsWith(".exe") || a.name.endsWith(".msi"));
+                    const downloadUrl =
+                      preferred?.browser_download_url ||
+                      rel?.html_url ||
+                      "https://github.com/deonmgn/orbitnotch/releases/latest";
+                    const hasNewer = tag !== "v0.1.0";
+                    setUpdateInfo({ tag, downloadUrl, hasNewer });
+                    showNotice(hasNewer ? `New release ${tag} found!` : `Up to date (${tag})`);
+                  } catch {
+                    showNotice("Could not check updates");
+                  } finally {
+                    setUpdateChecking(false);
+                  }
+                }}
+                className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 text-[10px] hover:bg-white/10 disabled:opacity-50"
+              >
+                {updateChecking ? "Checking..." : "Check Updates"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -23,6 +23,87 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+fn license_file_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("license.json"))
+}
+
+#[tauri::command]
+fn get_saved_license_key(app: tauri::AppHandle) -> String {
+    let Some(path) = license_file_path(&app) else {
+        return String::new();
+    };
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return String::new();
+    };
+    serde_json::from_str::<serde_json::Value>(&raw)
+        .ok()
+        .and_then(|v| v.get("licenseKey").and_then(|k| k.as_str()).map(|s| s.trim().to_string()))
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn save_license_key(app: tauri::AppHandle, key: String) -> Result<(), String> {
+    let Some(path) = license_file_path(&app) else {
+        return Err("Missing app data dir".to_string());
+    };
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let body = serde_json::json!({ "licenseKey": key.trim() });
+    std::fs::write(path, body.to_string()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn clear_license_key(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(path) = license_file_path(&app) {
+        if path.exists() {
+            std::fs::remove_file(path).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn install_app_update(download_url: String) -> Result<String, String> {
+    let url = download_url.trim().to_string();
+    if !url.starts_with("https://github.com/deonmgn/orbitnotch/")
+        && !url.starts_with("https://objects.githubusercontent.com/")
+    {
+        return Err("Untrusted update URL".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "curl -fsSL '{}' -o /tmp/OrbitNotch_update.dmg && \
+             MNT=$(hdiutil attach /tmp/OrbitNotch_update.dmg -nobrowse -readonly | grep -o '/Volumes/.*' | head -n 1) && \
+             if [ -d \"$MNT/OrbitNotch.app\" ]; then \
+               rm -rf /Applications/OrbitNotch.app && \
+               ditto \"$MNT/OrbitNotch.app\" /Applications/OrbitNotch.app && \
+               hdiutil detach \"$MNT\" -quiet || true; \
+               rm -f /tmp/OrbitNotch_update.dmg; \
+               (sleep 1 && open -a /Applications/OrbitNotch.app) & \
+             else \
+               hdiutil detach \"$MNT\" -quiet || true; \
+               exit 1; \
+             fi",
+            url.replace('\'', "")
+        );
+        let status = std::process::Command::new("sh")
+            .args(["-c", &script])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if status.success() {
+            return Ok("Updated and relaunching".to_string());
+        }
+        return Err("Failed to install DMG update".to_string());
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = url;
+        Err("Use browser installer on this OS".to_string())
+    }
+}
+
 #[tauri::command]
 fn launch_shortcut_target(target: String) -> Result<(), String> {
     let trimmed = target.trim();
@@ -263,6 +344,10 @@ pub fn run() {
             hud_interceptor::get_tahoe_banner_disabled,
             hud_interceptor::set_tahoe_banner_disabled,
             launch_shortcut_target,
+            get_saved_license_key,
+            save_license_key,
+            clear_license_key,
+            install_app_update,
             quit_app,
         ])
         .run(tauri::generate_context!())

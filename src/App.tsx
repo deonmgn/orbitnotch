@@ -28,6 +28,7 @@ export function App() {
   const tickPomodoro = useNotchStore((s) => s.tickPomodoro);
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
   const replaceSystemHud = useNotchStore((s) => s.replaceSystemHud);
+  const activatePro = useNotchStore((s) => s.activatePro);
   const setWeatherLabel = useNotchStore((s) => s.setWeatherLabel);
   const prevStatsRef = useRef<SystemStats | null>(null);
 
@@ -55,6 +56,13 @@ export function App() {
       .then(setMeetings)
       .catch(() => {});
     invoke("set_replace_system_hud", { enabled: replaceSystemHud }).catch(() => {});
+    invoke<string>("get_saved_license_key")
+      .then((savedKey) => {
+        if (savedKey && savedKey.trim().length >= 8) {
+          activatePro(savedKey);
+        }
+      })
+      .catch(() => {});
 
     const unlisteners: Promise<() => void>[] = [
       listen("notch://toggle", () => toggleExpanded()),
