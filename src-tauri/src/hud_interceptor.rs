@@ -71,23 +71,15 @@ mod macos_hud {
     }
 
     pub fn request_accessibility_prompt() -> bool {
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .spawn();
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+            .spawn();
         unsafe {
-            let keys = [kAXTrustedCheckOptionPrompt];
-            let vals = [kCFBooleanTrue];
-            let dict = CFDictionaryCreate(
-                std::ptr::null(),
-                keys.as_ptr(),
-                vals.as_ptr(),
-                1,
-                std::ptr::null(),
-                std::ptr::null(),
-            );
-            let trusted = AXIsProcessTrustedWithOptions(dict);
-            if !dict.is_null() {
-                CFRelease(dict);
-            }
             let listen = CGRequestListenEventAccess();
-            trusted && listen
+            is_accessibility_granted() && listen
         }
     }
 
@@ -217,7 +209,7 @@ mod macos_hud {
         std::thread::spawn(|| unsafe {
             let mask: u64 = 1 << 14; // NX_SYSDEFINED
             loop {
-                if is_accessibility_granted() && CGPreflightListenEventAccess() {
+                if is_accessibility_granted() || CGPreflightListenEventAccess() {
                     // Try kCGHIDEventTap (0) first, fallback to kCGSessionEventTap (1)
                     let mut tap = CGEventTapCreate(
                         0,
