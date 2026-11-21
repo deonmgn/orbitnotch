@@ -25,6 +25,20 @@ fn is_process_running(name: &str) -> bool {
 }
 
 #[cfg(target_os = "macos")]
+pub fn parse_pmset_audio_active(raw: &str) -> bool {
+    for line in raw.lines() {
+        let lower = line.to_ascii_lowercase();
+        if (lower.contains("coreaudiod") && lower.contains("com.apple.audio"))
+            || lower.contains("video wake lock")
+            || lower.contains("playing audio")
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(target_os = "macos")]
 fn is_macos_audio_playing() -> bool {
     #[repr(C)]
     struct AudioObjectPropertyAddress {
@@ -49,7 +63,7 @@ fn is_macos_audio_playing() -> bool {
     const K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL: u32 = 0x676c6f62; // 'glob'
     const K_AUDIO_DEVICE_PROPERTY_IS_RUNNING_SOMEWHERE: u32 = 0x676f6e65; // 'gone'
 
-    unsafe {
+    let coreaudio_running = unsafe {
         let mut device_id: u32 = 0;
         let mut size = std::mem::size_of::<u32>() as u32;
         let addr = AudioObjectPropertyAddress {
@@ -66,26 +80,38 @@ fn is_macos_audio_playing() -> bool {
             &mut device_id as *mut u32 as *mut std::ffi::c_void,
         );
         if status != 0 || device_id == 0 {
-            return false;
+            false
+        } else {
+            let mut is_running: u32 = 0;
+            let mut run_size = std::mem::size_of::<u32>() as u32;
+            let run_addr = AudioObjectPropertyAddress {
+                selector: K_AUDIO_DEVICE_PROPERTY_IS_RUNNING_SOMEWHERE,
+                scope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+                element: 0,
+            };
+            let status2 = AudioObjectGetPropertyData(
+                device_id,
+                &run_addr,
+                0,
+                std::ptr::null(),
+                &mut run_size,
+                &mut is_running as *mut u32 as *mut std::ffi::c_void,
+            );
+            status2 == 0 && is_running != 0
         }
+    };
 
-        let mut is_running: u32 = 0;
-        let mut run_size = std::mem::size_of::<u32>() as u32;
-        let run_addr = AudioObjectPropertyAddress {
-            selector: K_AUDIO_DEVICE_PROPERTY_IS_RUNNING_SOMEWHERE,
-            scope: K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
-            element: 0,
-        };
-        let status2 = AudioObjectGetPropertyData(
-            device_id,
-            &run_addr,
-            0,
-            std::ptr::null(),
-            &mut run_size,
-            &mut is_running as *mut u32 as *mut std::ffi::c_void,
-        );
-        status2 == 0 && is_running != 0
+    if !coreaudio_running {
+        return false;
     }
+
+    // Verify real playback assertion via pmset so paused browser tabs don't keep visualizer running
+    if let Ok(out) = Command::new("pmset").args(["-g", "assertions"]).output() {
+        let text = String::from_utf8_lossy(&out.stdout);
+        return parse_pmset_audio_active(&text);
+    }
+
+    false
 }
 
 #[cfg(target_os = "macos")]
@@ -114,21 +140,29 @@ fn fetch_browser_media() -> Option<MediaState> {
         let title = String::from_utf8_lossy(&out.stdout).trim().to_string();
         let lower = title.to_ascii_lowercase();
         let is_media_tab = lower.contains("youtube")
+            || lower.contains("tiktok")
             || lower.contains("spotify")
             || lower.contains("iqiyi")
             || lower.contains("netflix")
             || lower.contains("soundcloud")
             || lower.contains("twitch")
+            || lower.contains("vimeo")
+            || lower.contains("bilibili")
             || lower.contains("music");
         if !title.is_empty() && is_media_tab {
             let clean_title = title
                 .replace(" - YouTube", "")
                 .replace(" | iQIYI", "")
+                .replace(" | TikTok", "")
                 .trim()
                 .to_string();
             return Some(MediaState {
                 title: clean_title,
-                artist: format!("Playing in {app_name}"),
+                artist: if audio_active {
+                    format!("Playing in {app_name}")
+                } else {
+                    format!("Paused in {app_name}")
+                },
                 album: String::new(),
                 artwork_url: String::new(),
                 is_playing: audio_active,
@@ -193,7 +227,7 @@ pub fn fetch_now_playing() -> MediaState {
     let pos = parts[6].trim().replace(',', ".").parse::<f64>().unwrap_or(0.0);
     let artwork_url = parts.get(7).map(|s| s.trim().to_string()).unwrap_or_default();
 
-    MediaState {
+    let state = MediaState {
         app_name: parts[0].to_string(),
         is_playing: parts[1].eq_ignore_ascii_case("playing"),
         title: parts[2].to_string(),
@@ -203,7 +237,15 @@ pub fn fetch_now_playing() -> MediaState {
         duration_sec: dur,
         position_sec: pos,
         has_media: true,
+    };
+    if !state.is_playing {
+        if let Some(browser) = fetch_browser_media() {
+            if browser.is_playing {
+                return browser;
+            }
+        }
     }
+    state
 }
 
 #[cfg(target_os = "windows")]
@@ -376,4 +418,21 @@ pub fn media_seek(position_sec: f64) -> Result<MediaState, String> {
     }
     let _ = position_sec;
     Ok(fetch_now_playing())
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_pmset_audio_active() {
+        let idle = "pid 87300(caffeinate): PreventUserIdleSystemSleep named: \"caffeinate command-line tool\"";
+        assert!(!parse_pmset_audio_active(idle));
+
+        let playing = "pid 310(coreaudiod): PreventUserIdleSystemSleep named: \"com.apple.audio.AppleHDAEngineOutput.context.preventuseridlesleep\"";
+        assert!(parse_pmset_audio_active(playing));
+
+        let video = "pid 1234(Google Chrome): PreventUserIdleDisplaySleep named: \"Video Wake Lock\"";
+        assert!(parse_pmset_audio_active(video));
+    }
 }
