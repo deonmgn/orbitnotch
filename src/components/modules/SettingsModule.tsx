@@ -57,7 +57,11 @@ export function SettingsModule() {
       .then(setAutostartOn)
       .catch(() => {});
     refreshAccessibility();
-  }, []);
+    if (subTab === "behavior") {
+      const id = window.setInterval(refreshAccessibility, 1500);
+      return () => window.clearInterval(id);
+    }
+  }, [subTab]);
 
   const showNotice = (msg: string) => {
     setStatusMsg(msg);
@@ -279,11 +283,19 @@ export function SettingsModule() {
                 </>
               )}
               <button
-                onClick={() => {
+                onClick={async () => {
                   const next = !replaceSystemHud;
                   setReplaceSystemHud(next);
                   invoke("set_replace_system_hud", { enabled: next }).catch(() => {});
-                  showNotice(next ? "System HUD replaced" : "System HUD restored");
+                  if (next && displayEnv.platform === "macos" && !accessibilityOk) {
+                    const ok = await invoke<boolean>("request_accessibility_permission").catch(
+                      () => false
+                    );
+                    setAccessibilityOk(ok);
+                    showNotice(ok ? "HUD Tap Active!" : "Enable OrbitNotch in System Settings");
+                  } else {
+                    showNotice(next ? "System HUD replaced" : "System HUD restored");
+                  }
                 }}
                 className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
                   replaceSystemHud ? "bg-cyan-500" : "bg-white/15"
