@@ -178,32 +178,6 @@ pub fn set_system_volume(volume: u8) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_spbluetooth_json() {
-        let sample = r#"{
-          "SPBluetoothDataType": [{
-            "device_connected": [{
-              "AirPods Pro": {
-                "device_minorType": "Headphones",
-                "device_batteryLevelLeft": "85%",
-                "device_batteryLevelRight": "90%",
-                "device_batteryLevelCase": "60%"
-              }
-            }]
-          }]
-        }"#;
-        let devs = parse_spbluetooth_json(sample);
-        assert_eq!(devs.len(), 1);
-        assert_eq!(devs[0].name, "AirPods Pro");
-        assert_eq!(devs[0].battery_percent, Some(85));
-        assert_eq!(devs[0].case_percent, Some(60));
-    }
-}
-
 #[tauri::command]
 pub fn toggle_system_mute() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -233,32 +207,6 @@ pub fn toggle_system_mute() -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_spbluetooth_json() {
-        let sample = r#"{
-          "SPBluetoothDataType": [{
-            "device_connected": [{
-              "AirPods Pro": {
-                "device_minorType": "Headphones",
-                "device_batteryLevelLeft": "85%",
-                "device_batteryLevelRight": "90%",
-                "device_batteryLevelCase": "60%"
-              }
-            }]
-          }]
-        }"#;
-        let devs = parse_spbluetooth_json(sample);
-        assert_eq!(devs.len(), 1);
-        assert_eq!(devs[0].name, "AirPods Pro");
-        assert_eq!(devs[0].battery_percent, Some(85));
-        assert_eq!(devs[0].case_percent, Some(60));
-    }
-}
-
 #[tauri::command]
 pub fn trigger_screenshot() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -279,32 +227,6 @@ pub fn trigger_screenshot() -> Result<(), String> {
     }
     #[allow(unreachable_code)]
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_spbluetooth_json() {
-        let sample = r#"{
-          "SPBluetoothDataType": [{
-            "device_connected": [{
-              "AirPods Pro": {
-                "device_minorType": "Headphones",
-                "device_batteryLevelLeft": "85%",
-                "device_batteryLevelRight": "90%",
-                "device_batteryLevelCase": "60%"
-              }
-            }]
-          }]
-        }"#;
-        let devs = parse_spbluetooth_json(sample);
-        assert_eq!(devs.len(), 1);
-        assert_eq!(devs[0].name, "AirPods Pro");
-        assert_eq!(devs[0].battery_percent, Some(85));
-        assert_eq!(devs[0].case_percent, Some(60));
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
