@@ -482,21 +482,30 @@ export function SettingsModule() {
                 <Crown className={`w-3.5 h-3.5 ${isPro ? "text-amber-400" : "text-slate-400"}`} />
                 {isPro ? "OrbitNotch Pro Active" : "OrbitNotch Pro License"}
               </span>
-              <button
-                onClick={() =>
-                  openUrl("https://modedesk.myr.id/pl/orbitnotch-pro-lifetime-license").catch(
-                    () => {}
-                  )
-                }
-                className="text-[11px] text-amber-300 hover:text-amber-200 font-medium"
-              >
-                Buy Pro (Rp 49.000)
-              </button>
+              {isPro ? (
+                <span className="text-[11px] text-emerald-300 font-medium">Pro Lifetime ✓</span>
+              ) : (
+                <button
+                  onClick={() =>
+                    openUrl("https://modedesk.myr.id/pl/orbitnotch-pro-lifetime-license").catch(
+                      () => {}
+                    )
+                  }
+                  className="text-[11px] text-amber-300 hover:text-amber-200 font-medium"
+                >
+                  Buy Pro (Rp 49.000)
+                </button>
+              )}
             </div>
 
             {isPro ? (
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-emerald-300 font-mono truncate">Key: {licenseKey}</span>
+                <span className="text-emerald-300 font-mono truncate">
+                  Key:{" "}
+                  {licenseKey.length > 8
+                    ? `${licenseKey.slice(0, 4)}••••••••${licenseKey.slice(-4)}`
+                    : "••••••••"}
+                </span>
                 <button
                   onClick={() => {
                     deactivatePro();
@@ -511,6 +520,7 @@ export function SettingsModule() {
             ) : (
               <div className="flex items-center gap-1.5">
                 <input
+                  type="password"
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
                   placeholder="Paste Mayar.id License Key..."
