@@ -352,6 +352,33 @@ pub fn get_bluetooth_batteries() -> Vec<BluetoothDeviceBattery> {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(out) = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-PnpDevice -Class Bluetooth -Status OK | Where-Object { $_.FriendlyName -and $_.FriendlyName -notmatch 'Adapter|Enumerator|RFCOMM|Protocol|Service|Transport|Bluetooth LE' } | Select-Object -ExpandProperty FriendlyName",
+            ])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                let name = line.trim();
+                if !name.is_empty() && !devices.iter().any(|d| d.name == name) {
+                    devices.push(BluetoothDeviceBattery {
+                        name: name.to_string(),
+                        kind: "Bluetooth".to_string(),
+                        battery_percent: None,
+                        left_percent: None,
+                        right_percent: None,
+                        case_percent: None,
+                    });
+                }
+            }
+        }
+    }
+
     if let Ok(mut guard) = cache.lock() {
         *guard = (Instant::now(), devices.clone());
     }

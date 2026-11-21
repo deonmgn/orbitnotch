@@ -493,9 +493,29 @@ pub fn convert_shelf_image(
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        return Err("Image format conversion is currently supported on macOS".to_string());
+        if sips_fmt == "pdf" {
+            return Err("PDF conversion requires macOS".to_string());
+        }
+        let img_fmt = if sips_fmt == "jpeg" { "Jpeg" } else { "Png" };
+        let esc_in = path.replace('\'', "''");
+        let esc_out = out_str.replace('\'', "''");
+        let ps = format!(
+            "Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile('{esc_in}'); $img.Save('{esc_out}', [System.Drawing.Imaging.ImageFormat]::{img_fmt}); $img.Dispose()"
+        );
+        let status = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Image conversion failed".to_string());
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        return Err("Image format conversion is unsupported on this OS".to_string());
     }
 
     #[allow(unreachable_code)]

@@ -589,10 +589,25 @@ pub fn adjust_hud_delta(app: AppHandle, kind: String, delta: i32) -> Result<HudP
         let _ = app.emit("notch://hud", payload.clone());
         return Ok(payload);
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        let key_char = if delta >= 0 { 175 } else { 174 };
+        let script = format!("(New-Object -ComObject WScript.Shell).SendKeys([char]{key_char})");
+        let _ = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &script])
+            .status();
+        let payload = HudPayload {
+            kind: if kind == "brightness" { "brightness".into() } else { "volume".into() },
+            value: if delta >= 0 { 60 } else { 40 },
+            muted: false,
+        };
+        let _ = app.emit("notch://hud", payload.clone());
+        return Ok(payload);
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (app, kind, delta);
-        Err("Scroll HUD adjustment is only available on macOS".to_string())
+        Err("Scroll HUD adjustment is unavailable on this OS".to_string())
     }
 }
 

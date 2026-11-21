@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -53,6 +54,7 @@ export function SettingsModule() {
   const [verifying, setVerifying] = useState(false);
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updatingApp, setUpdatingApp] = useState(false);
+  const [appVersion, setAppVersion] = useState("0.1.0");
   const [updateInfo, setUpdateInfo] = useState<{
     tag: string;
     downloadUrl: string;
@@ -71,6 +73,9 @@ export function SettingsModule() {
   };
 
   useEffect(() => {
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
     isEnabled()
       .then(setAutostartOn)
       .catch(() => {});
@@ -559,7 +564,7 @@ export function SettingsModule() {
 
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[10px] text-slate-500">
-              OrbitNotch v0.1.0 · {updateInfo ? (updateInfo.hasNewer ? `Update ${updateInfo.tag} ready` : `Latest (${updateInfo.tag})`) : "macOS & Windows"}
+              OrbitNotch v{appVersion} · {updateInfo ? (updateInfo.hasNewer ? `Update ${updateInfo.tag} ready` : `Latest (${updateInfo.tag})`) : "macOS & Windows"}
             </span>
             <div className="flex items-center gap-1.5">
               {updateInfo?.downloadUrl && (
@@ -609,7 +614,7 @@ export function SettingsModule() {
                       preferred?.browser_download_url ||
                       rel?.html_url ||
                       "https://github.com/deonmgn/orbitnotch/releases/latest";
-                    const hasNewer = tag !== "v0.1.0";
+                    const hasNewer = tag !== `v${appVersion}`;
                     setUpdateInfo({ tag, downloadUrl, hasNewer });
                     showNotice(hasNewer ? `New release ${tag} found!` : `Up to date (${tag})`);
                   } catch {
