@@ -313,7 +313,7 @@ pub fn get_bluetooth_batteries() -> Vec<BluetoothDeviceBattery> {
     });
 
     if let Ok(guard) = cache.lock() {
-        if guard.0.elapsed() < Duration::from_secs(12) {
+        if guard.0.elapsed() < Duration::from_secs(4) {
             return guard.1.clone();
         }
     }

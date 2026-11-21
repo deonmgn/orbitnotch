@@ -49,6 +49,7 @@ export function NotchContainer() {
   const weatherLabel = useNotchStore((s) => s.weatherLabel);
   const enabledTabs = useNotchStore((s) => s.enabledTabs);
   const hudOverlay = useNotchStore((s) => s.hudOverlay);
+  const btBanner = useNotchStore((s) => s.btBanner);
   const isPro = useNotchStore((s) => s.isPro);
 
   const hoverTimeoutRef = useRef<number | null>(null);
@@ -61,7 +62,11 @@ export function NotchContainer() {
 
   const notchW = Math.max(176, Math.round(displayEnv.notchWidth));
   const compactWidth = isHardwareNotch ? notchW + 132 : 236;
-  const activeCompactWidth = hudOverlay ? compactWidth + 104 : compactWidth;
+  const activeCompactWidth = hudOverlay
+    ? compactWidth + 104
+    : btBanner
+    ? compactWidth + 136
+    : compactWidth;
   const compactHeight = isHardwareNotch ? Math.max(32, Math.round(displayEnv.notchHeight)) : 34;
   const expandedWidth = 640;
   const expandedHeight = isHardwareNotch ? 392 : 368;
@@ -120,7 +125,7 @@ export function NotchContainer() {
         focus: false,
       }).catch(() => {});
     } else {
-      const delay = hudOverlay ? 0 : 240;
+      const delay = hudOverlay || btBanner ? 0 : 240;
       const timer = window.setTimeout(() => {
         invoke("set_notch_window_size", {
           width: isHardwareNotch ? activeCompactWidth + 20 : activeCompactWidth,
@@ -132,7 +137,7 @@ export function NotchContainer() {
       }, delay);
       return () => window.clearTimeout(timer);
     }
-  }, [isExpanded, isHardwareNotch, activeCompactWidth, compactHeight, expandedHeight, selectedMonitor, hudOverlay]);
+  }, [isExpanded, isHardwareNotch, activeCompactWidth, compactHeight, expandedHeight, selectedMonitor, hudOverlay, btBanner]);
 
   // Listen for native OS file drag-and-drop
   useEffect(() => {

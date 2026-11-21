@@ -1,8 +1,22 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowDown, ArrowUp, Battery, BatteryCharging, Bluetooth, Camera, Cpu, Lock, MemoryStick, Volume2, VolumeX } from "lucide-react";
+import { ArrowDown, ArrowUp, Battery, BatteryCharging, Bluetooth, Camera, Cpu, Headphones, Keyboard, Lock, MemoryStick, Mouse, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { BluetoothDeviceBattery } from "../../types/notch";
+
+function renderBtIcon(kind: string) {
+  const k = kind.toLowerCase();
+  if (k.includes("head") || k.includes("audio") || k.includes("ear")) {
+    return <Headphones className="w-3 h-3 text-cyan-400 shrink-0" />;
+  }
+  if (k.includes("mouse") || k.includes("trackpad")) {
+    return <Mouse className="w-3 h-3 text-cyan-400 shrink-0" />;
+  }
+  if (k.includes("keyboard")) {
+    return <Keyboard className="w-3 h-3 text-cyan-400 shrink-0" />;
+  }
+  return <Bluetooth className="w-3 h-3 text-cyan-400 shrink-0" />;
+}
 
 function formatRate(kbps: number): string {
   if (kbps >= 1024) return `${(kbps / 1024).toFixed(1)} MB/s`;
@@ -12,6 +26,8 @@ function formatRate(kbps: number): string {
 export function SystemModule() {
   const stats = useNotchStore((s) => s.systemStats);
   const setSystemStats = useNotchStore((s) => s.setSystemStats);
+  const triggerBtBanner = useNotchStore((s) => s.triggerBtBanner);
+  const setExpanded = useNotchStore((s) => s.setExpanded);
   const isPro = useNotchStore((s) => s.isPro);
   const [btDevices, setBtDevices] = useState<BluetoothDeviceBattery[]>([]);
 
@@ -163,19 +179,26 @@ export function SystemModule() {
       {isPro && btDevices.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto notch-scroll pb-0.5">
           {btDevices.map((d) => (
-            <div
+            <button
               key={d.name}
-              className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-1.5 shrink-0 text-[10px] text-slate-200"
+              onClick={() => {
+                triggerBtBanner(d);
+                setExpanded(false);
+              }}
+              title="Click to preview Live Notch Pop-Up"
+              className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 flex items-center gap-1.5 shrink-0 text-[10px] text-slate-200 transition-colors cursor-pointer"
             >
-              <Bluetooth className="w-3 h-3 text-cyan-400 shrink-0" />
-              <span className="truncate max-w-[110px] font-medium">{d.name}</span>
-              {d.batteryPercent !== null && (
+              {renderBtIcon(d.kind)}
+              <span className="truncate max-w-[115px] font-medium">{d.name}</span>
+              {d.batteryPercent !== null ? (
                 <span className="font-mono text-emerald-300">{d.batteryPercent}%</span>
+              ) : (
+                <span className="text-[9px] text-emerald-400">Connected</span>
               )}
               {d.casePercent !== null && (
                 <span className="font-mono text-slate-400">· Case {d.casePercent}%</span>
               )}
-            </div>
+            </button>
           ))}
         </div>
       )}

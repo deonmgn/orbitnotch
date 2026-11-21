@@ -26,6 +26,7 @@ export function App() {
   const toggleExpanded = useNotchStore((s) => s.toggleExpanded);
   const triggerPeek = useNotchStore((s) => s.triggerPeek);
   const triggerHud = useNotchStore((s) => s.triggerHud);
+  const triggerBtBanner = useNotchStore((s) => s.triggerBtBanner);
   const tickPomodoro = useNotchStore((s) => s.tickPomodoro);
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
   const replaceSystemHud = useNotchStore((s) => s.replaceSystemHud);
@@ -126,33 +127,42 @@ export function App() {
     return () => window.clearInterval(id);
   }, [tickPomodoro]);
 
-  // Pro: Bluetooth / AirPods battery peek when a new device connects
+  // Pro: Live Bluetooth connection pop-up banner for ANY Bluetooth device
   useEffect(() => {
     if (!isPro) return;
     let mounted = true;
+    let initialized = false;
     const pollBt = async () => {
       try {
         const list = await invoke<BluetoothDeviceBattery[]>("get_bluetooth_batteries");
         if (!mounted) return;
+        const currentNames = new Set(list.map((d) => d.name));
+        // Remove disconnected devices so reconnecting triggers the pop-up again
+        for (const oldName of seenBtRef.current) {
+          if (!currentNames.has(oldName)) {
+            seenBtRef.current.delete(oldName);
+          }
+        }
         for (const dev of list) {
-          if (dev.batteryPercent !== null && !seenBtRef.current.has(dev.name)) {
-            if (seenBtRef.current.size > 0) {
-              triggerPeek({ kind: "battery", label: `${dev.name} ${dev.batteryPercent}%` });
+          if (!seenBtRef.current.has(dev.name)) {
+            if (initialized) {
+              triggerBtBanner(dev);
             }
             seenBtRef.current.add(dev.name);
           }
         }
+        initialized = true;
       } catch {
         // Ignore
       }
     };
     pollBt();
-    const id = window.setInterval(pollBt, 15000);
+    const id = window.setInterval(pollBt, 5000);
     return () => {
       mounted = false;
       window.clearInterval(id);
     };
-  }, [isPro, triggerPeek]);
+  }, [isPro, triggerBtBanner]);
 
   // Mini Weather Badge (Open-Meteo, free & no API key, refreshed every 30m)
   useEffect(() => {

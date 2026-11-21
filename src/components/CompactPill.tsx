@@ -1,7 +1,21 @@
-import { Sun, Volume2, VolumeX } from "lucide-react";
+import { Bluetooth, Headphones, Keyboard, Mouse, Sun, Volume2, VolumeX } from "lucide-react";
 import { useNotchStore } from "../store/useNotchStore";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { OrbitLogo } from "./OrbitLogo";
+
+function BtDeviceIcon({ kind }: { kind: string }) {
+  const k = kind.toLowerCase();
+  if (k.includes("head") || k.includes("audio") || k.includes("ear")) {
+    return <Headphones className="w-3.5 h-3.5 text-emerald-300 shrink-0 animate-pulse" />;
+  }
+  if (k.includes("mouse") || k.includes("trackpad")) {
+    return <Mouse className="w-3.5 h-3.5 text-emerald-300 shrink-0 animate-pulse" />;
+  }
+  if (k.includes("keyboard")) {
+    return <Keyboard className="w-3.5 h-3.5 text-emerald-300 shrink-0 animate-pulse" />;
+  }
+  return <Bluetooth className="w-3.5 h-3.5 text-emerald-300 shrink-0 animate-pulse" />;
+}
 
 function formatShortTimer(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -24,6 +38,7 @@ export function CompactPill() {
   const shelfCount = useNotchStore((s) => s.shelf.length);
   const peekEvent = useNotchStore((s) => s.peekEvent);
   const hudOverlay = useNotchStore((s) => s.hudOverlay);
+  const btBanner = useNotchStore((s) => s.btBanner);
   const notchWidth = useNotchStore((s) => s.displayEnv.notchWidth);
   const isHardwareNotch = useNotchStore(
     (s) =>
@@ -54,6 +69,13 @@ export function CompactPill() {
                 : hudOverlay.muted
                 ? "Muted"
                 : "Volume"}
+            </span>
+          </>
+        ) : btBanner ? (
+          <>
+            <BtDeviceIcon kind={btBanner.kind} />
+            <span className="text-[11px] font-medium text-emerald-100 truncate max-w-[110px]">
+              {btBanner.name}
             </span>
           </>
         ) : (
@@ -115,6 +137,17 @@ export function CompactPill() {
             <span className="text-[10px] font-mono font-semibold text-slate-100 w-7 text-right">
               {hudOverlay.muted ? "0%" : `${hudOverlay.value}%`}
             </span>
+          </div>
+        ) : btBanner ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-emerald-300 font-medium">Connected</span>
+            {btBanner.batteryPercent !== null ? (
+              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                {btBanner.batteryPercent}%
+              </span>
+            ) : (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+            )}
           </div>
         ) : peekEvent ? (
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 animate-pulse">

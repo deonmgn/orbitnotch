@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import type {
+  BluetoothDeviceBattery,
   ClipboardEntry,
   DisplayEnvironment,
   HudPayload,
@@ -35,6 +36,7 @@ interface NotchStore {
   enabledTabs: NotchTab[];
   peekEvent: PeekEvent | null;
   hudOverlay: HudPayload | null;
+  btBanner: BluetoothDeviceBattery | null;
   activeTab: NotchTab;
   notchMode: NotchMode;
   theme: NotchTheme;
@@ -61,6 +63,7 @@ interface NotchStore {
   deactivatePro: () => void;
   triggerPeek: (event: PeekEvent) => void;
   triggerHud: (hud: HudPayload) => void;
+  triggerBtBanner: (device: BluetoothDeviceBattery) => void;
   setActiveTab: (tab: NotchTab) => void;
   setNotchMode: (mode: NotchMode) => void;
   setTheme: (theme: NotchTheme) => void;
@@ -121,6 +124,7 @@ export const useNotchStore = create<NotchStore>((set) => ({
   enabledTabs: savedTabs,
   peekEvent: null,
   hudOverlay: null,
+  btBanner: null,
   activeTab: "shelf",
   notchMode: savedMode,
   theme: savedTheme,
@@ -216,6 +220,12 @@ export const useNotchStore = create<NotchStore>((set) => ({
     window.setTimeout(() => {
       set((s) => (s.hudOverlay === hudOverlay ? { hudOverlay: null } : s));
     }, 1800);
+  },
+  triggerBtBanner: (btBanner) => {
+    set({ btBanner });
+    window.setTimeout(() => {
+      set((s) => (s.btBanner === btBanner ? { btBanner: null } : s));
+    }, 3200);
   },
   setActiveTab: (activeTab) => set({ activeTab }),
   setNotchMode: (notchMode) => {
