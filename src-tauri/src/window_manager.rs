@@ -188,7 +188,10 @@ pub fn configure_platform_window(window: &WebviewWindow) {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn configure_platform_window(_window: &WebviewWindow) {}
 
-pub fn position_window_on_monitor(window: &WebviewWindow, monitor_index: Option<usize>) -> DisplayEnvironment {
+pub fn read_display_environment(
+    window: &WebviewWindow,
+    monitor_index: Option<usize>,
+) -> DisplayEnvironment {
     let monitors = window.available_monitors().unwrap_or_default();
     let monitor_count = monitors.len().max(1);
     let target = monitor_index
@@ -198,34 +201,13 @@ pub fn position_window_on_monitor(window: &WebviewWindow, monitor_index: Option<
 
     let (has_hardware_notch, notch_width, notch_height) = detect_macos_hardware_notch();
 
-    let (screen_width, screen_height, scale_factor, mon_x, mon_y) = if let Some(m) = target {
+    let (screen_width, screen_height, scale_factor) = if let Some(m) = target {
         let scale = m.scale_factor();
         let size = m.size().to_logical::<f64>(scale);
-        let pos = m.position().to_logical::<f64>(scale);
-        (size.width, size.height, scale, pos.x, pos.y)
+        (size.width, size.height, scale)
     } else {
-        (1440.0, 900.0, 1.0, 0.0, 0.0)
+        (1440.0, 900.0, 1.0)
     };
-
-    #[cfg(target_os = "macos")]
-    {
-        set_cocoa_top_center_frame(
-            window,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            has_hardware_notch,
-            monitor_index,
-        );
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let (x, y) =
-            compute_top_center_position(mon_x, mon_y, screen_width, WINDOW_WIDTH, has_hardware_notch);
-        let _ = window.set_size(LogicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT));
-        let _ = window.set_position(LogicalPosition::new(x, y));
-    }
-    let _ = (mon_x, mon_y);
 
     let platform = if cfg!(target_os = "macos") {
         "macos"
@@ -248,10 +230,64 @@ pub fn position_window_on_monitor(window: &WebviewWindow, monitor_index: Option<
     }
 }
 
+pub fn position_window_on_monitor(window: &WebviewWindow, monitor_index: Option<usize>) -> DisplayEnvironment {
+    let monitors = window.available_monitors().unwrap_or_default();
+    let target = monitor_index
+        .and_then(|idx| monitors.get(idx).cloned())
+        .or_else(|| window.primary_monitor().ok().flatten())
+        .or_else(|| monitors.into_iter().next());
+
+    let env = read_display_environment(window, monitor_index);
+
+    let (mon_x, mon_y) = if let Some(m) = target {
+        let pos = m.position().to_logical::<f64>(env.scale_factor);
+        (pos.x, pos.y)
+    } else {
+        (0.0, 0.0)
+    };
+
+    // Preserve the current window size instead of resetting to 720x460;
+    // on initial launch (when still at default WINDOW_WIDTH x WINDOW_HEIGHT), start compact.
+    let (cur_w, cur_h) = window
+        .inner_size()
+        .ok()
+        .map(|s| {
+            let l = s.to_logical::<f64>(env.scale_factor);
+            if (l.width - WINDOW_WIDTH).abs() < 1.0 && (l.height - WINDOW_HEIGHT).abs() < 1.0 {
+                (320.0, env.notch_height.max(34.0))
+            } else {
+                (l.width, l.height)
+            }
+        })
+        .unwrap_or((320.0, env.notch_height.max(34.0)));
+
+    #[cfg(target_os = "macos")]
+    {
+        set_cocoa_top_center_frame(
+            window,
+            cur_w,
+            cur_h,
+            env.has_hardware_notch,
+            monitor_index,
+        );
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let (x, y) =
+            compute_top_center_position(mon_x, mon_y, env.screen_width, cur_w, env.has_hardware_notch);
+        let _ = window.set_size(LogicalSize::new(cur_w, cur_h));
+        let _ = window.set_position(LogicalPosition::new(x, y));
+    }
+    let _ = (mon_x, mon_y);
+
+    env
+}
+
 #[tauri::command]
 pub fn get_display_environment(app: tauri::AppHandle) -> DisplayEnvironment {
     if let Some(window) = app.get_webview_window("main") {
-        position_window_on_monitor(&window, None)
+        read_display_environment(&window, None)
     } else {
         DisplayEnvironment {
             has_hardware_notch: false,

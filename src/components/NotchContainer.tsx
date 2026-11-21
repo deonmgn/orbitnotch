@@ -96,10 +96,14 @@ export function NotchContainer() {
           window.clearTimeout(collapseTimeoutRef.current);
           collapseTimeoutRef.current = null;
         }
+        if (hoverTimeoutRef.current) {
+          window.clearTimeout(hoverTimeoutRef.current);
+          hoverTimeoutRef.current = null;
+        }
         if (!useNotchStore.getState().isExpanded) {
           hoverTimeoutRef.current = window.setTimeout(() => {
             useNotchStore.getState().setExpanded(true);
-          }, 90);
+          }, 140);
         }
       }),
       listen("notch://hover-leave", () => {
@@ -143,7 +147,17 @@ export function NotchContainer() {
       }, delay);
       return () => window.clearTimeout(timer);
     }
-  }, [isExpanded, isHardwareNotch, activeCompactWidth, compactHeight, expandedHeight, selectedMonitor, hudOverlay, btBanner]);
+  }, [
+    isExpanded,
+    isHardwareNotch,
+    activeCompactWidth,
+    compactHeight,
+    expandedWidth,
+    expandedHeight,
+    selectedMonitor,
+    hudOverlay,
+    btBanner,
+  ]);
 
   // Listen for native OS file drag-and-drop
   useEffect(() => {
