@@ -66,6 +66,7 @@ export function App() {
           if (next.isCharging && !prev.isCharging) {
             triggerPeek({ kind: "charging", label: `Charging ${next.batteryPercent ?? ""}%` });
           } else if (
+            !replaceSystemHud &&
             next.volumePercent !== null &&
             prev.volumePercent !== null &&
             next.volumePercent !== prev.volumePercent

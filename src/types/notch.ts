@@ -13,9 +13,16 @@ export interface PeekEvent {
 }
 
 export interface HudPayload {
-  kind: "volume" | "brightness";
+  kind: "volume" | "brightness" | "backlight";
   value: number;
   muted: boolean;
+}
+
+export interface HudPermissionStatus {
+  accessibility: boolean;
+  inputMonitoring: boolean;
+  hidTapActive: boolean;
+  sessionTapOnly: boolean;
 }
 
 export type NotchMode = "auto" | "hardware" | "floating";

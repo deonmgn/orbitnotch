@@ -257,7 +257,11 @@ pub fn run() {
             calendar_ics::remove_meeting,
             hud_interceptor::set_replace_system_hud,
             hud_interceptor::get_accessibility_status,
+            hud_interceptor::get_hud_permission_status,
             hud_interceptor::request_accessibility_permission,
+            hud_interceptor::reset_tcc_permissions,
+            hud_interceptor::get_tahoe_banner_disabled,
+            hud_interceptor::set_tahoe_banner_disabled,
             launch_shortcut_target,
             quit_app,
         ])

@@ -39,7 +39,7 @@ export function CompactPill() {
       <div className="flex items-center gap-1.5 min-w-0">
         {hudOverlay ? (
           <>
-            {hudOverlay.kind === "brightness" ? (
+            {hudOverlay.kind === "brightness" || hudOverlay.kind === "backlight" ? (
               <Sun className="w-3.5 h-3.5 text-amber-300 shrink-0" />
             ) : hudOverlay.muted ? (
               <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" />
@@ -49,6 +49,8 @@ export function CompactPill() {
             <span className="text-[11px] font-medium text-slate-100">
               {hudOverlay.kind === "brightness"
                 ? "Brightness"
+                : hudOverlay.kind === "backlight"
+                ? "Keyboard"
                 : hudOverlay.muted
                 ? "Muted"
                 : "Volume"}
@@ -101,7 +103,7 @@ export function CompactPill() {
             <div className="w-16 h-1.5 rounded-full bg-white/15 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-100 ${
-                  hudOverlay.kind === "brightness"
+                  hudOverlay.kind === "brightness" || hudOverlay.kind === "backlight"
                     ? "bg-amber-300 shadow-[0_0_8px_#fcd34d]"
                     : hudOverlay.muted
                     ? "bg-rose-400"

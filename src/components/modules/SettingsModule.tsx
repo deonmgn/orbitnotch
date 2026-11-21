@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
-import type { DisplayEnvironment, NotchMode, NotchTheme } from "../../types/notch";
+import type { DisplayEnvironment, HudPermissionStatus, NotchMode, NotchTheme } from "../../types/notch";
 
 type SetupTab = "appearance" | "behavior" | "account";
 
@@ -41,14 +41,25 @@ export function SettingsModule() {
 
   const [subTab, setSubTab] = useState<SetupTab>("appearance");
   const [autostartOn, setAutostartOn] = useState(false);
-  const [accessibilityOk, setAccessibilityOk] = useState(true);
+  const [hudStatus, setHudStatus] = useState<HudPermissionStatus>({
+    accessibility: true,
+    inputMonitoring: true,
+    hidTapActive: true,
+    sessionTapOnly: false,
+  });
+  const [tahoeBannerDisabled, setTahoeBannerDisabled] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState(licenseKey);
   const [verifying, setVerifying] = useState(false);
 
+  const accessibilityOk = hudStatus.hidTapActive;
+
   const refreshAccessibility = () => {
-    invoke<boolean>("get_accessibility_status")
-      .then(setAccessibilityOk)
+    invoke<HudPermissionStatus>("get_hud_permission_status")
+      .then(setHudStatus)
+      .catch(() => {});
+    invoke<boolean>("get_tahoe_banner_disabled")
+      .then(setTahoeBannerDisabled)
       .catch(() => {});
   };
 
@@ -246,68 +257,115 @@ export function SettingsModule() {
       {/* 2. Behavior & Modules */}
       {subTab === "behavior" && (
         <div className="flex-1 flex flex-col justify-center gap-2">
-          <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs font-medium text-slate-200">Replace System Volume/Brightness HUD</p>
-              <p className="text-[10px] text-slate-400">
-                {displayEnv.platform === "macos" && !accessibilityOk
-                  ? "Grant Accessibility + Input Monitoring, then refresh"
-                  : "HUD Tap Active ✓ — Dynamic Island replaces OS popup"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {displayEnv.platform === "macos" && !accessibilityOk && (
-                <>
-                  <button
-                    onClick={async () => {
+          <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium text-slate-200">Replace System Volume/Brightness HUD</p>
+                <p className="text-[10px] text-slate-400">
+                  {displayEnv.platform === "macos" && !accessibilityOk
+                    ? hudStatus.sessionTapOnly
+                      ? "Session tap only — Accessibility needed to block OS HUD"
+                      : "Grant Accessibility + Input Monitoring"
+                    : "HID Blocker Active ✓ — Dynamic Island replaces OS popup"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {displayEnv.platform === "macos" && !accessibilityOk && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        const ok = await invoke<boolean>("request_accessibility_permission").catch(
+                          () => false
+                        );
+                        refreshAccessibility();
+                        showNotice(ok ? "HID Blocker Active!" : "Enable OrbitNotch in Settings");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[10px] font-medium border border-amber-400/30"
+                    >
+                      Grant
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await invoke<boolean>("reset_tcc_permissions").catch(() => false);
+                        refreshAccessibility();
+                        showNotice("Reset TCC & re-prompted");
+                      }}
+                      title="Reset stale macOS permission cache and re-prompt"
+                      className="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-[10px] font-medium border border-rose-400/25"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      onClick={() => {
+                        refreshAccessibility();
+                        showNotice("Checked permissions");
+                      }}
+                      title="Refresh permission status"
+                      className="p-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={async () => {
+                    const next = !replaceSystemHud;
+                    setReplaceSystemHud(next);
+                    invoke("set_replace_system_hud", { enabled: next }).catch(() => {});
+                    if (next && displayEnv.platform === "macos" && !accessibilityOk) {
                       const ok = await invoke<boolean>("request_accessibility_permission").catch(
                         () => false
                       );
-                      setAccessibilityOk(ok);
-                      showNotice(ok ? "Accessibility granted!" : "Enable OrbitNotch in Settings");
-                    }}
-                    className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[10px] font-medium border border-amber-400/30"
-                  >
-                    Grant
-                  </button>
-                  <button
-                    onClick={() => {
                       refreshAccessibility();
-                      showNotice("Checked Accessibility");
-                    }}
-                    title="Refresh Accessibility status"
-                    className="p-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                  </button>
-                </>
-              )}
-              <button
-                onClick={async () => {
-                  const next = !replaceSystemHud;
-                  setReplaceSystemHud(next);
-                  invoke("set_replace_system_hud", { enabled: next }).catch(() => {});
-                  if (next && displayEnv.platform === "macos" && !accessibilityOk) {
-                    const ok = await invoke<boolean>("request_accessibility_permission").catch(
-                      () => false
-                    );
-                    setAccessibilityOk(ok);
-                    showNotice(ok ? "HUD Tap Active!" : "Enable OrbitNotch in System Settings");
-                  } else {
-                    showNotice(next ? "System HUD replaced" : "System HUD restored");
-                  }
-                }}
-                className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
-                  replaceSystemHud ? "bg-cyan-500" : "bg-white/15"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                    replaceSystemHud ? "translate-x-4" : "translate-x-0"
+                      showNotice(ok ? "HID Blocker Active!" : "Enable OrbitNotch in System Settings");
+                    } else {
+                      showNotice(next ? "System HUD replaced" : "System HUD restored");
+                    }
+                  }}
+                  className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
+                    replaceSystemHud ? "bg-cyan-500" : "bg-white/15"
                   }`}
-                />
-              </button>
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      replaceSystemHud ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
+            {displayEnv.platform === "macos" && (
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 text-[10px]">
+                <div className="flex items-center gap-2">
+                  <span className={hudStatus.accessibility ? "text-emerald-400" : "text-amber-300"}>
+                    Accessibility {hudStatus.accessibility ? "✓" : "✗"}
+                  </span>
+                  <span className={hudStatus.inputMonitoring ? "text-emerald-400" : "text-amber-300"}>
+                    Input {hudStatus.inputMonitoring ? "✓" : "✗"}
+                  </span>
+                  <span className={hudStatus.hidTapActive ? "text-emerald-400" : "text-slate-400"}>
+                    HID Tap {hudStatus.hidTapActive ? "✓" : "✗"}
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    const res = await invoke<boolean>("set_tahoe_banner_disabled", {
+                      disabled: !tahoeBannerDisabled,
+                    }).catch(() => tahoeBannerDisabled);
+                    setTahoeBannerDisabled(res);
+                    showNotice(res ? "Tahoe corner banner suppressed" : "Tahoe corner banner restored");
+                  }}
+                  className={`px-2 py-0.5 rounded-md border transition ${
+                    tahoeBannerDisabled
+                      ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-200"
+                      : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                  }`}
+                  title="Disable macOS Tahoe ControlCenter corner HUD banners"
+                >
+                  {tahoeBannerDisabled ? "Tahoe Banner Off ✓" : "Hide Tahoe Banner"}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
