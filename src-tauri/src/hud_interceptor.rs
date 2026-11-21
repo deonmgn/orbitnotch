@@ -25,6 +25,7 @@ mod macos_hud {
     use std::sync::OnceLock;
 
     static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+    static TAP_PTR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
     extern "C" {
         fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
@@ -140,6 +141,15 @@ mod macos_hud {
         use cocoa::base::id;
         use objc::{msg_send, sel, sel_impl};
 
+        // Re-enable tap if macOS disables it due to timeout
+        if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
+            let tap = TAP_PTR.load(Ordering::Relaxed) as *mut c_void;
+            if !tap.is_null() {
+                unsafe { CGEventTapEnable(tap, true) };
+            }
+            return event;
+        }
+
         if !HUD_REPLACE_ENABLED.load(Ordering::Relaxed) || event_type != 14 || event.is_null() {
             return event;
         }
@@ -230,6 +240,7 @@ mod macos_hud {
                         );
                     }
                     if !tap.is_null() {
+                        TAP_PTR.store(tap as usize, Ordering::Relaxed);
                         TAP_ACTIVE.store(true, Ordering::Relaxed);
                         let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
                         let rl = CFRunLoopGetCurrent();
@@ -256,6 +267,7 @@ mod windows_hud {
     };
 
     static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+    static TAP_PTR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
     unsafe extern "system" fn ll_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         if code >= 0 && HUD_REPLACE_ENABLED.load(Ordering::Relaxed) && wparam.0 as u32 == WM_KEYDOWN {
