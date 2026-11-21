@@ -71,6 +71,12 @@ export function App() {
     const unlisteners: Promise<() => void>[] = [
       listen("notch://toggle", () => toggleExpanded()),
       listen<HudPayload>("notch://hud", (e) => triggerHud(e.payload)),
+      listen<DisplayEnvironment>("display://changed", (e) => {
+        setDisplayEnv(e.payload);
+        invoke<MonitorSummary[]>("list_monitors")
+          .then(setMonitors)
+          .catch(() => {});
+      }),
       listen<SystemStats>("system://stats", (e) => {
         const next = e.payload;
         const prev = prevStatsRef.current;

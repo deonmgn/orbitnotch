@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{LogicalPosition, LogicalSize};
 use tauri::{Manager, WebviewWindow};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DisplayEnvironment {
     pub has_hardware_notch: bool,

@@ -68,8 +68,14 @@ export function NotchContainer() {
     ? compactWidth + 136
     : compactWidth;
   const compactHeight = isHardwareNotch ? Math.max(32, Math.round(displayEnv.notchHeight)) : 34;
-  const expandedWidth = 640;
-  const expandedHeight = isHardwareNotch ? 392 : 368;
+  const expandedWidth = Math.min(
+    640,
+    Math.max(360, Math.round(displayEnv.screenWidth - 24))
+  );
+  const expandedHeight = Math.min(
+    isHardwareNotch ? 392 : 368,
+    Math.max(260, Math.round(displayEnv.screenHeight - 48))
+  );
 
   // Escape key collapses the notch
   useEffect(() => {

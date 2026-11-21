@@ -162,6 +162,13 @@ pub fn run() {
                 })
                 .build(),
         )
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::ScaleFactorChanged { .. } = event {
+                let app = window.app_handle().clone();
+                let env = window_manager::get_display_environment(app.clone());
+                let _ = app.emit("display://changed", env);
+            }
+        })
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -218,6 +225,29 @@ pub fn run() {
                     })
                     .build(app);
             }
+
+            // Background Display Geometry & Scaling Watcher (macOS Larger Text/More Space + Windows DPI + Monitor changes)
+            let disp_handle = app.handle().clone();
+            let last_env_state = std::sync::Arc::new(std::sync::Mutex::new(None::<window_manager::DisplayEnvironment>));
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_millis(2000)).await;
+                    let app_main = disp_handle.clone();
+                    let state_ref = last_env_state.clone();
+                    let _ = disp_handle.run_on_main_thread(move || {
+                        let cur = window_manager::get_display_environment(app_main.clone());
+                        if let Ok(mut guard) = state_ref.lock() {
+                            if guard.as_ref() != Some(&cur) {
+                                let should_emit = guard.is_some();
+                                *guard = Some(cur.clone());
+                                if should_emit {
+                                    let _ = app_main.emit("display://changed", cur);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
 
             // Background System Telemetry Loop
             let sys_handle = app.handle().clone();
