@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Calculator, Check, Copy, ExternalLink, Plus, Rocket, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNotchStore } from "../../store/useNotchStore";
+import { ProGate } from "../ProGate";
 
 interface ShortcutItem {
   id: string;
@@ -58,6 +60,7 @@ function evaluateQuickExpression(raw: string): string | null {
 }
 
 export function QuickModule() {
+  const isPro = useNotchStore((s) => s.isPro);
   const [expr, setExpr] = useState("");
   const [copiedResult, setCopiedResult] = useState(false);
   const [shortcuts, setShortcuts] = useState<ShortcutItem[]>(() => {
@@ -99,6 +102,15 @@ export function QuickModule() {
     setNewTarget("");
     setShowAdd(false);
   };
+
+  if (!isPro) {
+    return (
+      <ProGate
+        featureName="Quick Calc & Launcher"
+        description="Unlock instant math, currency/unit conversion, and custom app & URL shortcuts with a one-time Pro license."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full gap-3">

@@ -12,6 +12,7 @@ function formatSize(bytes: number): string {
 }
 
 export function ShelfModule() {
+  const isPro = useNotchStore((s) => s.isPro);
   const shelf = useNotchStore((s) => s.shelf);
   const setShelf = useNotchStore((s) => s.setShelf);
   const isDraggingFile = useNotchStore((s) => s.isDraggingFile);
@@ -58,6 +59,10 @@ export function ShelfModule() {
 
   const handleCopy = async (item: ShelfItem) => {
     if (item.kind === "image" && item.path) {
+      if (!isPro) {
+        flashStatus(item.id, "Pro required");
+        return;
+      }
       try {
         await invoke("copy_image_to_clipboard", { path: item.path });
         flashStatus(item.id, "Image copied!");
@@ -77,6 +82,10 @@ export function ShelfModule() {
 
   const handleOcr = async (item: ShelfItem) => {
     if (!item.path) return;
+    if (!isPro) {
+      flashStatus(item.id, "Pro required");
+      return;
+    }
     flashStatus(item.id, "Scanning...");
     try {
       await invoke<string>("extract_image_text_ocr", { path: item.path });
@@ -88,6 +97,10 @@ export function ShelfModule() {
 
   const handleCompress = async (item: ShelfItem) => {
     if (!item.path) return;
+    if (!isPro) {
+      flashStatus(item.id, "Pro required");
+      return;
+    }
     flashStatus(item.id, "Compressing...");
     try {
       const updated = await invoke<ShelfItem[]>("compress_shelf_image", { path: item.path });

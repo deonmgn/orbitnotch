@@ -17,6 +17,8 @@ export function ProductivityModule() {
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const isPro = useNotchStore((s) => s.isPro);
+  const setActiveTab = useNotchStore((s) => s.setActiveTab);
   const pomodoro = useNotchStore((s) => s.pomodoro);
   const startPausePomodoro = useNotchStore((s) => s.startPausePomodoro);
   const resetPomodoro = useNotchStore((s) => s.resetPomodoro);
@@ -30,6 +32,7 @@ export function ProductivityModule() {
   const filteredClipboard = clipboard.filter((c) =>
     c.content.toLowerCase().includes(query.toLowerCase())
   );
+  const visibleClipboard = isPro ? filteredClipboard : filteredClipboard.slice(0, 3);
 
   const handleCopyEntry = async (id: string) => {
     try {
@@ -42,6 +45,10 @@ export function ProductivityModule() {
   };
 
   const handleTogglePin = async (id: string) => {
+    if (!isPro) {
+      setActiveTab("settings");
+      return;
+    }
     const updated = await invoke<ClipboardEntry[]>("toggle_pin_clipboard_entry", { id });
     setClipboard(updated);
   };
@@ -151,12 +158,13 @@ export function ProductivityModule() {
           </div>
 
           <div className="flex-1 overflow-y-auto notch-scroll space-y-1.5 pr-1">
-            {filteredClipboard.length === 0 ? (
+            {visibleClipboard.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-8">
                 Copy anything on your computer to see it here automatically.
               </p>
             ) : (
-              filteredClipboard.map((entry) => (
+              <>
+                {visibleClipboard.map((entry) => (
                 <div
                   key={entry.id}
                   onClick={() => handleCopyEntry(entry.id)}
@@ -188,6 +196,7 @@ export function ProductivityModule() {
                       e.stopPropagation();
                       handleTogglePin(entry.id);
                     }}
+                    title={isPro ? "Pin entry" : "Pro required to pin"}
                     className={`p-1 rounded hover:bg-white/10 ${
                       entry.pinned ? "text-cyan-400" : "text-slate-500"
                     }`}
@@ -195,7 +204,16 @@ export function ProductivityModule() {
                     <Pin className="w-3 h-3" />
                   </button>
                 </div>
-              ))
+              ))}
+                {!isPro && filteredClipboard.length > 3 && (
+                  <button
+                    onClick={() => setActiveTab("settings")}
+                    className="w-full py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-[10px] text-amber-200 hover:bg-amber-500/20 transition"
+                  >
+                    +{filteredClipboard.length - 3} more in Pro — Unlock Unlimited Clipboard
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

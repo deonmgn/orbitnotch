@@ -5,6 +5,7 @@ import { Calendar, ExternalLink, Mic, Plus, Trash2, Video, VideoOff } from "luci
 import { useEffect, useRef, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { MeetingEvent } from "../../types/notch";
+import { ProGate } from "../ProGate";
 
 function formatCountdown(iso: string): string {
   const diffMin = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
@@ -16,6 +17,7 @@ function formatCountdown(iso: string): string {
 }
 
 export function MeetingModule() {
+  const isPro = useNotchStore((s) => s.isPro);
   const meetings = useNotchStore((s) => s.meetings);
   const setMeetings = useNotchStore((s) => s.setMeetings);
   const setDialogOpen = useNotchStore((s) => s.setDialogOpen);
@@ -137,6 +139,15 @@ export function MeetingModule() {
     const updated = await invoke<MeetingEvent[]>("remove_meeting", { id });
     setMeetings(updated);
   };
+
+  if (!isPro) {
+    return (
+      <ProGate
+        featureName="Camera Mirror & ICS Calendar"
+        description="Check your camera & mic before calls and track upcoming .ics meetings directly in your notch."
+      />
+    );
+  }
 
   return (
     <div className="grid grid-cols-5 gap-3 h-full">
