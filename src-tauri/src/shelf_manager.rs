@@ -459,9 +459,59 @@ pub fn compress_shelf_image(
     Ok(state.add_files(vec![out_str]))
 }
 
+pub fn normalize_convert_format(fmt: &str) -> Result<&'static str, String> {
+    match fmt.trim().to_lowercase().as_str() {
+        "jpg" | "jpeg" => Ok("jpeg"),
+        "png" => Ok("png"),
+        "pdf" => Ok("pdf"),
+        _ => Err("Unsupported target format".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn convert_shelf_image(
+    state: tauri::State<ShelfStore>,
+    path: String,
+    target_format: String,
+) -> Result<Vec<ShelfItem>, String> {
+    let sips_fmt = normalize_convert_format(&target_format)?;
+    let ext = if sips_fmt == "jpeg" { "jpg" } else { sips_fmt };
+    let src = PathBuf::from(&path);
+    let parent = src.parent().ok_or("Invalid path")?;
+    let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
+    let out_path = parent.join(format!("{}-converted.{}", stem, ext));
+    let out_str = out_path.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("sips")
+            .args(["-s", "format", sips_fmt, &path, "--out", &out_str])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Image conversion failed".to_string());
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        return Err("Image format conversion is currently supported on macOS".to_string());
+    }
+
+    #[allow(unreachable_code)]
+    Ok(state.add_files(vec![out_str]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_normalize_convert_format() {
+        assert_eq!(normalize_convert_format("jpg").unwrap(), "jpeg");
+        assert_eq!(normalize_convert_format("PDF").unwrap(), "pdf");
+        assert!(normalize_convert_format("exe").is_err());
+    }
 
     #[test]
     fn test_is_image_extension() {

@@ -49,9 +49,11 @@ export function NotchContainer() {
   const weatherLabel = useNotchStore((s) => s.weatherLabel);
   const enabledTabs = useNotchStore((s) => s.enabledTabs);
   const hudOverlay = useNotchStore((s) => s.hudOverlay);
+  const isPro = useNotchStore((s) => s.isPro);
 
   const hoverTimeoutRef = useRef<number | null>(null);
   const collapseTimeoutRef = useRef<number | null>(null);
+  const lastWheelRef = useRef<number>(0);
 
   const isHardwareNotch =
     notchMode === "hardware" ||
@@ -255,6 +257,18 @@ export function NotchContainer() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.1 }}
               className="w-full h-full"
+              onWheel={(e) => {
+                if (!isPro || isExpanded) return;
+                const now = Date.now();
+                if (now - lastWheelRef.current < 60) return;
+                if (Math.abs(e.deltaY) < 2) return;
+                lastWheelRef.current = now;
+                const delta = e.deltaY < 0 ? 4 : -4;
+                invoke("adjust_hud_delta", {
+                  kind: e.altKey ? "brightness" : "volume",
+                  delta,
+                }).catch(() => {});
+              }}
             >
               <CompactPill />
             </motion.div>

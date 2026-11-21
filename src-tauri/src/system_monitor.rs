@@ -178,6 +178,32 @@ pub fn set_system_volume(volume: u8) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_spbluetooth_json() {
+        let sample = r#"{
+          "SPBluetoothDataType": [{
+            "device_connected": [{
+              "AirPods Pro": {
+                "device_minorType": "Headphones",
+                "device_batteryLevelLeft": "85%",
+                "device_batteryLevelRight": "90%",
+                "device_batteryLevelCase": "60%"
+              }
+            }]
+          }]
+        }"#;
+        let devs = parse_spbluetooth_json(sample);
+        assert_eq!(devs.len(), 1);
+        assert_eq!(devs[0].name, "AirPods Pro");
+        assert_eq!(devs[0].battery_percent, Some(85));
+        assert_eq!(devs[0].case_percent, Some(60));
+    }
+}
+
 #[tauri::command]
 pub fn toggle_system_mute() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -207,6 +233,32 @@ pub fn toggle_system_mute() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_spbluetooth_json() {
+        let sample = r#"{
+          "SPBluetoothDataType": [{
+            "device_connected": [{
+              "AirPods Pro": {
+                "device_minorType": "Headphones",
+                "device_batteryLevelLeft": "85%",
+                "device_batteryLevelRight": "90%",
+                "device_batteryLevelCase": "60%"
+              }
+            }]
+          }]
+        }"#;
+        let devs = parse_spbluetooth_json(sample);
+        assert_eq!(devs.len(), 1);
+        assert_eq!(devs[0].name, "AirPods Pro");
+        assert_eq!(devs[0].battery_percent, Some(85));
+        assert_eq!(devs[0].case_percent, Some(60));
+    }
+}
+
 #[tauri::command]
 pub fn trigger_screenshot() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -229,6 +281,161 @@ pub fn trigger_screenshot() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_spbluetooth_json() {
+        let sample = r#"{
+          "SPBluetoothDataType": [{
+            "device_connected": [{
+              "AirPods Pro": {
+                "device_minorType": "Headphones",
+                "device_batteryLevelLeft": "85%",
+                "device_batteryLevelRight": "90%",
+                "device_batteryLevelCase": "60%"
+              }
+            }]
+          }]
+        }"#;
+        let devs = parse_spbluetooth_json(sample);
+        assert_eq!(devs.len(), 1);
+        assert_eq!(devs[0].name, "AirPods Pro");
+        assert_eq!(devs[0].battery_percent, Some(85));
+        assert_eq!(devs[0].case_percent, Some(60));
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluetoothDeviceBattery {
+    pub name: String,
+    pub kind: String,
+    pub battery_percent: Option<u8>,
+    pub left_percent: Option<u8>,
+    pub right_percent: Option<u8>,
+    pub case_percent: Option<u8>,
+}
+
+fn parse_pct_val(v: &serde_json::Value) -> Option<u8> {
+    if let Some(n) = v.as_u64() {
+        return Some(n.min(100) as u8);
+    }
+    if let Some(s) = v.as_str() {
+        let digits: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if let Ok(n) = digits.parse::<u8>() {
+            return Some(n.min(100));
+        }
+    }
+    None
+}
+
+pub fn parse_spbluetooth_json(raw: &str) -> Vec<BluetoothDeviceBattery> {
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return Vec::new();
+    };
+    let Some(arr) = root.get("SPBluetoothDataType").and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in arr {
+        let Some(connected) = entry.get("device_connected").and_then(|v| v.as_array()) else {
+            continue;
+        };
+        for dev_obj in connected {
+            let Some(map) = dev_obj.as_object() else {
+                continue;
+            };
+            for (name, info) in map {
+                let kind = info
+                    .get("device_minorType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Device")
+                    .to_string();
+                let main = info.get("device_batteryLevelMain").and_then(parse_pct_val);
+                let left = info.get("device_batteryLevelLeft").and_then(parse_pct_val);
+                let right = info.get("device_batteryLevelRight").and_then(parse_pct_val);
+                let case = info.get("device_batteryLevelCase").and_then(parse_pct_val);
+                let battery_percent = main.or_else(|| match (left, right) {
+                    (Some(l), Some(r)) => Some(l.min(r)),
+                    (Some(l), None) => Some(l),
+                    (None, Some(r)) => Some(r),
+                    _ => None,
+                });
+                out.push(BluetoothDeviceBattery {
+                    name: name.clone(),
+                    kind,
+                    battery_percent,
+                    left_percent: left,
+                    right_percent: right,
+                    case_percent: case,
+                });
+            }
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub fn get_bluetooth_batteries() -> Vec<BluetoothDeviceBattery> {
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+
+    static CACHE: OnceLock<Mutex<(Instant, Vec<BluetoothDeviceBattery>)>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        Mutex::new((
+            Instant::now() - Duration::from_secs(60),
+            Vec::new(),
+        ))
+    });
+
+    if let Ok(guard) = cache.lock() {
+        if guard.0.elapsed() < Duration::from_secs(12) {
+            return guard.1.clone();
+        }
+    }
+
+    #[allow(unused_mut)]
+    let mut devices: Vec<BluetoothDeviceBattery> = Vec::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(out) = Command::new("system_profiler")
+            .args(["SPBluetoothDataType", "-json"])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            devices = parse_spbluetooth_json(&text);
+        }
+        // Supplement HID battery levels from ioreg when SPBluetoothDataType omits battery
+        if let Ok(io_out) = Command::new("ioreg")
+            .args(["-r", "-c", "AppleDeviceManagementHIDEventService"])
+            .output()
+        {
+            let io_text = String::from_utf8_lossy(&io_out.stdout);
+            let mut cur_product: Option<String> = None;
+            for line in io_text.lines() {
+                let trimmed = line.trim();
+                if let Some(rest) = trimmed.strip_prefix("\"Product\" = \"") {
+                    cur_product = rest.strip_suffix('"').map(|s| s.to_string());
+                } else if let Some(rest) = trimmed.strip_prefix("\"BatteryPercent\" = ") {
+                    if let (Some(prod), Ok(pct)) = (&cur_product, rest.trim().parse::<u8>()) {
+                        if let Some(d) = devices.iter_mut().find(|d| d.name == *prod && d.battery_percent.is_none()) {
+                            d.battery_percent = Some(pct.min(100));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(mut guard) = cache.lock() {
+        *guard = (Instant::now(), devices.clone());
+    }
+    devices
+}
+
 #[tauri::command]
 pub fn lock_screen() -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -249,4 +456,30 @@ pub fn lock_screen() -> Result<(), String> {
     }
     #[allow(unreachable_code)]
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_spbluetooth_json() {
+        let sample = r#"{
+          "SPBluetoothDataType": [{
+            "device_connected": [{
+              "AirPods Pro": {
+                "device_minorType": "Headphones",
+                "device_batteryLevelLeft": "85%",
+                "device_batteryLevelRight": "90%",
+                "device_batteryLevelCase": "60%"
+              }
+            }]
+          }]
+        }"#;
+        let devs = parse_spbluetooth_json(sample);
+        assert_eq!(devs.len(), 1);
+        assert_eq!(devs[0].name, "AirPods Pro");
+        assert_eq!(devs[0].battery_percent, Some(85));
+        assert_eq!(devs[0].case_percent, Some(60));
+    }
 }

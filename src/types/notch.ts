@@ -25,6 +25,15 @@ export interface HudPermissionStatus {
   sessionTapOnly: boolean;
 }
 
+export interface BluetoothDeviceBattery {
+  name: string;
+  kind: string;
+  batteryPercent: number | null;
+  leftPercent: number | null;
+  rightPercent: number | null;
+  casePercent: number | null;
+}
+
 export type NotchMode = "auto" | "hardware" | "floating";
 export type NotchTheme = "obsidian" | "oled" | "frosted";
 

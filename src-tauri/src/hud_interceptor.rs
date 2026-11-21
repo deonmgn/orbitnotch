@@ -126,7 +126,7 @@ mod macos_hud {
         }
     }
 
-    fn adjust_macos_brightness(delta: f32) -> Option<u8> {
+    pub(super) fn adjust_macos_brightness(delta: f32) -> Option<u8> {
         unsafe {
             let path = b"/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices\0";
             let handle = dlopen(path.as_ptr() as *const c_char, 2);
@@ -236,7 +236,7 @@ mod macos_hud {
         }
     }
 
-    fn adjust_macos_volume(delta: i32, toggle_mute: bool) -> (u8, bool) {
+    pub(super) fn adjust_macos_volume(delta: i32, toggle_mute: bool) -> (u8, bool) {
         if let Some(res) = adjust_macos_volume_coreaudio(delta as f32 / 100.0, toggle_mute) {
             return res;
         }
@@ -562,6 +562,37 @@ pub fn get_tahoe_banner_disabled() -> bool {
     #[cfg(not(target_os = "macos"))]
     {
         false
+    }
+}
+
+#[tauri::command]
+pub fn adjust_hud_delta(app: AppHandle, kind: String, delta: i32) -> Result<HudPayload, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let payload = if kind == "brightness" {
+            let step = (delta as f32) / 100.0;
+            let b = macos_hud::adjust_macos_brightness(step)
+                .ok_or_else(|| "Brightness unavailable".to_string())?;
+            HudPayload {
+                kind: "brightness".into(),
+                value: b,
+                muted: false,
+            }
+        } else {
+            let (v, m) = macos_hud::adjust_macos_volume(delta, false);
+            HudPayload {
+                kind: "volume".into(),
+                value: v,
+                muted: m,
+            }
+        };
+        let _ = app.emit("notch://hud", payload.clone());
+        return Ok(payload);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, kind, delta);
+        Err("Scroll HUD adjustment is only available on macOS".to_string())
     }
 }
 

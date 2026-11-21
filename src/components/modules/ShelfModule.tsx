@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Copy, FileText, Folder, FolderOpen, Image as ImageIcon, Minimize2, Pin, Plus, ScanText, Trash2, UploadCloud } from "lucide-react";
+import { Copy, FileOutput, FileText, Folder, FolderOpen, Image as ImageIcon, Minimize2, Pin, Plus, QrCode, ScanText, Trash2, UploadCloud, X } from "lucide-react";
+import QRCode from "qrcode";
 import { useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { ShelfItem } from "../../types/notch";
@@ -19,6 +20,7 @@ export function ShelfModule() {
   const setDialogOpen = useNotchStore((s) => s.setDialogOpen);
   const [quickText, setQuickText] = useState("");
   const [statusById, setStatusById] = useState<Record<string, string>>({});
+  const [qrModal, setQrModal] = useState<{ label: string; dataUrl: string } | null>(null);
 
   const flashStatus = (id: string, msg: string) => {
     setStatusById((s) => ({ ...s, [id]: msg }));
@@ -108,6 +110,44 @@ export function ShelfModule() {
       flashStatus(item.id, "Compressed!");
     } catch {
       flashStatus(item.id, "Failed");
+    }
+  };
+
+  const handleConvertPdf = async (item: ShelfItem) => {
+    if (!item.path) return;
+    if (!isPro) {
+      flashStatus(item.id, "Pro required");
+      return;
+    }
+    flashStatus(item.id, "Converting...");
+    try {
+      const updated = await invoke<ShelfItem[]>("convert_shelf_image", {
+        path: item.path,
+        targetFormat: "pdf",
+      });
+      setShelf(updated);
+      flashStatus(item.id, "Saved PDF!");
+    } catch {
+      flashStatus(item.id, "Failed");
+    }
+  };
+
+  const handleShowQr = async (item: ShelfItem) => {
+    if (!isPro) {
+      flashStatus(item.id, "Pro required");
+      return;
+    }
+    const text = (item.textContent ?? item.path ?? item.name).trim();
+    if (!text) return;
+    try {
+      const dataUrl = await QRCode.toDataURL(text, {
+        width: 180,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+      setQrModal({ label: item.name, dataUrl });
+    } catch {
+      flashStatus(item.id, "QR error");
     }
   };
 
@@ -233,7 +273,23 @@ export function ShelfModule() {
                       >
                         <Minimize2 className="w-3 h-3" />
                       </button>
+                      <button
+                        onClick={() => handleConvertPdf(item)}
+                        title="Convert to PDF (Pro)"
+                        className="p-1 rounded-md hover:bg-white/10 text-amber-300"
+                      >
+                        <FileOutput className="w-3 h-3" />
+                      </button>
                     </>
+                  )}
+                  {item.kind === "text" && (
+                    <button
+                      onClick={() => handleShowQr(item)}
+                      title="Instant QR Code (Pro)"
+                      className="p-1 rounded-md hover:bg-white/10 text-violet-300"
+                    >
+                      <QrCode className="w-3 h-3" />
+                    </button>
                   )}
                   <button
                     onClick={() => handleCopy(item)}
@@ -273,6 +329,24 @@ export function ShelfModule() {
           </div>
         )}
       </div>
+
+      {qrModal && (
+        <div
+          onClick={() => setQrModal(null)}
+          className="absolute inset-0 z-20 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-2 p-4 rounded-2xl"
+        >
+          <div className="bg-white p-2 rounded-xl shadow-lg">
+            <img src={qrModal.dataUrl} alt="QR Code" className="w-32 h-32" />
+          </div>
+          <p className="text-[11px] text-slate-200 truncate max-w-[240px]">{qrModal.label}</p>
+          <button
+            onClick={() => setQrModal(null)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 text-xs text-white hover:bg-white/25"
+          >
+            <X className="w-3 h-3" /> Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

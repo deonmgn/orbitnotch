@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { NotchContainer } from "./components/NotchContainer";
 import { useNotchStore } from "./store/useNotchStore";
 import type {
+  BluetoothDeviceBattery,
   ClipboardEntry,
   DisplayEnvironment,
   HudPayload,
@@ -29,8 +30,10 @@ export function App() {
   const hideInFullscreen = useNotchStore((s) => s.hideInFullscreen);
   const replaceSystemHud = useNotchStore((s) => s.replaceSystemHud);
   const activatePro = useNotchStore((s) => s.activatePro);
+  const isPro = useNotchStore((s) => s.isPro);
   const setWeatherLabel = useNotchStore((s) => s.setWeatherLabel);
   const prevStatsRef = useRef<SystemStats | null>(null);
+  const seenBtRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // Initial hydration from Rust backend
@@ -122,6 +125,34 @@ export function App() {
     const id = window.setInterval(tickPomodoro, 1000);
     return () => window.clearInterval(id);
   }, [tickPomodoro]);
+
+  // Pro: Bluetooth / AirPods battery peek when a new device connects
+  useEffect(() => {
+    if (!isPro) return;
+    let mounted = true;
+    const pollBt = async () => {
+      try {
+        const list = await invoke<BluetoothDeviceBattery[]>("get_bluetooth_batteries");
+        if (!mounted) return;
+        for (const dev of list) {
+          if (dev.batteryPercent !== null && !seenBtRef.current.has(dev.name)) {
+            if (seenBtRef.current.size > 0) {
+              triggerPeek({ kind: "battery", label: `${dev.name} ${dev.batteryPercent}%` });
+            }
+            seenBtRef.current.add(dev.name);
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    };
+    pollBt();
+    const id = window.setInterval(pollBt, 15000);
+    return () => {
+      mounted = false;
+      window.clearInterval(id);
+    };
+  }, [isPro, triggerPeek]);
 
   // Mini Weather Badge (Open-Meteo, free & no API key, refreshed every 30m)
   useEffect(() => {

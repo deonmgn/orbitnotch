@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Check, Clipboard, Copy, Pause, Pin, Play, RotateCcw, Search, StickyNote, Timer, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Check, Clipboard, Copy, Pause, Pin, Play, RotateCcw, Search, StickyNote, Timer, Trash2, Volume2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
 import type { ClipboardEntry } from "../../types/notch";
 
 type SubTab = "timer" | "clipboard" | "notes";
+type AmbientMode = "off" | "rain" | "brown" | "hum";
 
 function formatClock(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -14,11 +15,71 @@ function formatClock(sec: number): string {
 
 export function ProductivityModule() {
   const [subTab, setSubTab] = useState<SubTab>("timer");
+  const [ambient, setAmbient] = useState<AmbientMode>("off");
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const isPro = useNotchStore((s) => s.isPro);
   const setActiveTab = useNotchStore((s) => s.setActiveTab);
+
+  useEffect(() => {
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    if (!isPro || ambient === "off") return;
+
+    try {
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const sampleRate = ctx.sampleRate;
+      const length = sampleRate * 2;
+      const buffer = ctx.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      let lastOut = 0;
+      for (let i = 0; i < length; i++) {
+        const white = Math.random() * 2 - 1;
+        if (ambient === "brown") {
+          data[i] = (lastOut + 0.02 * white) / 1.02;
+          lastOut = data[i];
+          data[i] *= 2.4;
+        } else if (ambient === "rain") {
+          data[i] = white * 0.35;
+        } else {
+          data[i] = (lastOut + 0.01 * white) / 1.01;
+          lastOut = data[i];
+          data[i] = data[i] * 1.8 + Math.sin((2 * Math.PI * 110 * i) / sampleRate) * 0.03;
+        }
+      }
+
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = ambient === "rain" ? "bandpass" : "lowpass";
+      filter.frequency.value = ambient === "rain" ? 1200 : ambient === "brown" ? 320 : 220;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0.08;
+
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      src.start();
+    } catch {
+      // Ignore if AudioContext unavailable
+    }
+
+    return () => {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+    };
+  }, [ambient, isPro]);
   const pomodoro = useNotchStore((s) => s.pomodoro);
   const startPausePomodoro = useNotchStore((s) => s.startPausePomodoro);
   const resetPomodoro = useNotchStore((s) => s.resetPomodoro);
@@ -129,6 +190,37 @@ export function ProductivityModule() {
                 }`}
               >
                 {mins}m
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
+            <Volume2 className="w-3 h-3 text-slate-400" />
+            {(
+              [
+                { id: "off", label: "Silent" },
+                { id: "rain", label: "Rain" },
+                { id: "brown", label: "Brown" },
+                { id: "hum", label: "Hum" },
+              ] as const
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  if (!isPro && id !== "off") {
+                    setActiveTab("settings");
+                    return;
+                  }
+                  setAmbient(id);
+                }}
+                className={`px-2 py-0.5 rounded-md border transition-colors ${
+                  ambient === id
+                    ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200"
+                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                }`}
+                title={isPro ? `Focus sound: ${label}` : "Pro required for Focus Sounds"}
+              >
+                {label}
               </button>
             ))}
           </div>

@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowDown, ArrowUp, Battery, BatteryCharging, Camera, Cpu, Lock, MemoryStick, Volume2, VolumeX } from "lucide-react";
+import { ArrowDown, ArrowUp, Battery, BatteryCharging, Bluetooth, Camera, Cpu, Lock, MemoryStick, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNotchStore } from "../../store/useNotchStore";
+import type { BluetoothDeviceBattery } from "../../types/notch";
 
 function formatRate(kbps: number): string {
   if (kbps >= 1024) return `${(kbps / 1024).toFixed(1)} MB/s`;
@@ -10,6 +12,15 @@ function formatRate(kbps: number): string {
 export function SystemModule() {
   const stats = useNotchStore((s) => s.systemStats);
   const setSystemStats = useNotchStore((s) => s.setSystemStats);
+  const isPro = useNotchStore((s) => s.isPro);
+  const [btDevices, setBtDevices] = useState<BluetoothDeviceBattery[]>([]);
+
+  useEffect(() => {
+    if (!isPro) return;
+    invoke<BluetoothDeviceBattery[]>("get_bluetooth_batteries")
+      .then(setBtDevices)
+      .catch(() => {});
+  }, [isPro]);
 
   const handleVolumeChange = async (val: number) => {
     setSystemStats({ ...stats, volumePercent: val, isMuted: val === 0 });
@@ -148,6 +159,26 @@ export function SystemModule() {
           {stats.isMuted ? "Mute" : `${stats.volumePercent ?? 50}%`}
         </span>
       </div>
+
+      {isPro && btDevices.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto notch-scroll pb-0.5">
+          {btDevices.map((d) => (
+            <div
+              key={d.name}
+              className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-1.5 shrink-0 text-[10px] text-slate-200"
+            >
+              <Bluetooth className="w-3 h-3 text-cyan-400 shrink-0" />
+              <span className="truncate max-w-[110px] font-medium">{d.name}</span>
+              {d.batteryPercent !== null && (
+                <span className="font-mono text-emerald-300">{d.batteryPercent}%</span>
+              )}
+              {d.casePercent !== null && (
+                <span className="font-mono text-slate-400">· Case {d.casePercent}%</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
