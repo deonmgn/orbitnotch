@@ -270,7 +270,8 @@ export function SettingsModule() {
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {displayEnv.platform === "macos" && !accessibilityOk && (
+                {displayEnv.platform === "macos" &&
+                  (!accessibilityOk || !hudStatus.inputMonitoring) && (
                   <>
                     <button
                       onClick={async () => {
@@ -278,23 +279,25 @@ export function SettingsModule() {
                           () => false
                         );
                         refreshAccessibility();
-                        showNotice(ok ? "HID Blocker Active!" : "Enable OrbitNotch in Settings");
+                        showNotice(ok ? "All permissions granted!" : "Enable OrbitNotch in Settings");
                       }}
                       className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[10px] font-medium border border-amber-400/30"
                     >
-                      Grant
+                      {accessibilityOk && !hudStatus.inputMonitoring ? "Grant Input" : "Grant"}
                     </button>
-                    <button
-                      onClick={async () => {
-                        await invoke<boolean>("reset_tcc_permissions").catch(() => false);
-                        refreshAccessibility();
-                        showNotice("Reset TCC & re-prompted");
-                      }}
-                      title="Reset stale macOS permission cache and re-prompt"
-                      className="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-[10px] font-medium border border-rose-400/25"
-                    >
-                      Reset
-                    </button>
+                    {!accessibilityOk && (
+                      <button
+                        onClick={async () => {
+                          await invoke<boolean>("reset_tcc_permissions").catch(() => false);
+                          refreshAccessibility();
+                          showNotice("Reset TCC & re-prompted");
+                        }}
+                        title="Reset stale macOS permission cache and re-prompt"
+                        className="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-[10px] font-medium border border-rose-400/25"
+                      >
+                        Reset
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         refreshAccessibility();
@@ -340,9 +343,23 @@ export function SettingsModule() {
                   <span className={hudStatus.accessibility ? "text-emerald-400" : "text-amber-300"}>
                     Accessibility {hudStatus.accessibility ? "✓" : "✗"}
                   </span>
-                  <span className={hudStatus.inputMonitoring ? "text-emerald-400" : "text-amber-300"}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!hudStatus.inputMonitoring) {
+                        invoke<boolean>("request_accessibility_permission")
+                          .then(() => refreshAccessibility())
+                          .catch(() => {});
+                      }
+                    }}
+                    className={`${
+                      hudStatus.inputMonitoring
+                        ? "text-emerald-400 cursor-default"
+                        : "text-amber-300 hover:underline cursor-pointer"
+                    }`}
+                  >
                     Input {hudStatus.inputMonitoring ? "✓" : "✗"}
-                  </span>
+                  </button>
                   <span className={hudStatus.hidTapActive ? "text-emerald-400" : "text-slate-400"}>
                     HID Tap {hudStatus.hidTapActive ? "✓" : "✗"}
                   </span>
