@@ -287,9 +287,11 @@ export function App() {
                 <ul className="mt-5 space-y-2 text-xs text-slate-200">
                   {[
                     "Everything in Free",
-                    "Auto-Catch Screenshots + Instant Copy Image",
+                    "Scroll-on-Notch Volume & Brightness HUD",
+                    "Bluetooth / AirPods Battery Peek",
+                    "Instant QR Code, OCR, Compress & PDF Shelf Tools",
                     "Quick Calculator, Converter & App Launcher",
-                    "Unlimited Clipboard History & Pomodoro",
+                    "Unlimited Clipboard, Focus Ambient Sounds & Pomodoro",
                     "Pre-Call Camera Mirror & ICS Calendar",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-2">
